@@ -1,0 +1,16 @@
+from dishka import AsyncContainer, Provider, make_async_container
+
+from composition.bootstrap.interactors import InteractorProvider
+{%- if include_example %}
+from composition.bootstrap.repositories import RepositoryProvider
+{%- endif %}
+
+
+def make_container(*extra: Provider) -> AsyncContainer:
+    return make_async_container(
+        InteractorProvider(),
+{%- if include_example %}
+        RepositoryProvider(),
+{%- endif %}
+        *extra,
+    )

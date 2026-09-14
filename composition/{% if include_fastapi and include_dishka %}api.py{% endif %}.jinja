@@ -1,0 +1,36 @@
+import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+import uvicorn
+from dishka.integrations.fastapi import setup_dishka
+from fastapi import FastAPI
+
+from composition.bootstrap.container import make_container
+{%- if include_example %}
+from {{ project_name }}.presentation.fastapi.items import (
+    router as items_router,
+)
+{%- endif %}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    yield
+    await app.state.dishka_container.close()
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="{{ project_name }}", lifespan=lifespan)
+{%- if include_example %}
+    app.include_router(items_router)
+{%- endif %}
+    setup_dishka(make_container(), app)
+    return app
+
+
+def main() -> None:
+    uvicorn.main(
+        ["--factory", "composition.api:create_app", *sys.argv[1:]],
+        prog_name="api",
+    )

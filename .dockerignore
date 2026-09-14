@@ -1,0 +1,11 @@
+.venv
+.git
+.env
+**/__pycache__
+.mypy_cache
+.ruff_cache
+.pytest_cache
+tests
+.python-version
+.gitignore
+.copier-answers.yml
