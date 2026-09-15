@@ -32,7 +32,8 @@ Copier-шаблон Python-проекта на Clean Architecture (в терми
 ├── application/
 │   ├── interactors/     # Use Cases — по одному классу на сценарий
 │   └── interfaces/       # порты (протоколы репозиториев, шлюзов и т.д.)
-│       └── interactor.py # IInteractor[Input, Output] — базовый контракт use case'а
+│       ├── interactor.py # IInteractor[Input, Output] — базовый контракт use case'а
+│       └── port.py       # IPort — базовый класс портов, по нему работает auto-wiring реализаций
 ├── infrastructure/      # реализации портов: БД, внешние API, брокеры
 └── presentation/
     └── fastapi/          # HTTP-адаптер (если include_fastapi)
@@ -43,6 +44,9 @@ composition/                                  # Composition Root — снару�
     ├── container.py                            # make_container() — общий граф провайдеров для всех entrypoint'ов
     ├── interactors.py.jinja                    # auto-wiring: сканирует application.interactors,
     │                                            # регистрирует все подклассы IInteractor в DI-контейнере
+    ├── ports.py.jinja                          # auto-wiring: регистрирует реализации портов (IPort) из
+    │                                            # infrastructure и presentation, scope REQUEST; provide() в
+    │                                            # PortProvider переопределяет scope или выбирает реализацию
     └── utils.py                                 # обход пакетов / поиск подклассов для auto-wiring
 
 scripts/            # служебные скрипты
@@ -51,7 +55,7 @@ copier.yaml          # переменные шаблона: project_name, includ
 pyproject.toml.jinja  # зависимости + import-linter контракт слоёв
 ```
 
-`include_example` (спрашивается только при `include_fastapi` + `include_dishka`) добавляет рабочий вертикальный срез `Item` — по одному файлу на слой: Entity → порт `IItemRepository` → DTO с `@dto` → интеракторы → `InMemoryItemRepository` → FastAPI-роутер `/items` со своими pydantic-схемами запроса/ответа и маппингом в/из DTO интерактора, плюс `RepositoryProvider` в `composition/bootstrap/`.
+`include_example` (спрашивается только при `include_fastapi` + `include_dishka`) добавляет рабочий вертикальный срез `Item` — по одному файлу на слой: Entity → порт `IItemRepository` → DTO с `@dto` → интеракторы → `InMemoryItemRepository` → FastAPI-роутер `/items` со своими pydantic-схемами запроса/ответа и маппингом в/из DTO интерактора, плюс явный `provide()` в `PortProvider`, который переводит `InMemoryItemRepository` в scope APP (иначе данные терялись бы между запросами).
 
 ## Запуск
 

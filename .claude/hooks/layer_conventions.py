@@ -48,9 +48,7 @@ def main() -> None:
                 f.write(f"{init}\n")
         return
 
-    already_read = state.is_file() and str(init) in (
-        state.read_text(encoding="utf-8").splitlines()
-    )
+    already_read = state.is_file() and str(init) in (state.read_text(encoding="utf-8").splitlines())
     if already_read:
         return
 

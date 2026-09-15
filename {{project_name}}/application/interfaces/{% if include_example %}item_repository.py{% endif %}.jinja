@@ -1,9 +1,10 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
+from {{ project_name }}.application.interfaces.port import IPort
 from {{ project_name }}.domain.model.item import Item
 
 
-class IItemRepository(ABC):
+class IItemRepository(IPort):
     @abstractmethod
     async def add(self, item: Item) -> None: ...
 

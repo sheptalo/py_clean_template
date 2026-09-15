@@ -20,11 +20,7 @@ def _interactor_dto_names(package: Path) -> set[str]:
                 continue
             if base_name(base) != "IInteractor":
                 continue
-            args = (
-                base.slice.elts
-                if isinstance(base.slice, ast.Tuple)
-                else [base.slice]
-            )
+            args = base.slice.elts if isinstance(base.slice, ast.Tuple) else [base.slice]
             names.update(a.id for a in args if isinstance(a, ast.Name))
     return names
 
@@ -44,10 +40,7 @@ def test_interactor_dtos_use_dto_decorator() -> None:
     missing = dto_names - is_decorated.keys()
     assert not missing, f"Interactor DTOs not found as classes: {missing}"
 
-    violations = [
-        name for name, decorated in is_decorated.items() if not decorated
-    ]
+    violations = [name for name, decorated in is_decorated.items() if not decorated]
     assert not violations, (
-        "Interactor Input/Output DTOs must use the @dto decorator from "
-        f"application.interfaces.dto: {violations}"
+        f"Interactor Input/Output DTOs must use the @dto decorator from application.interfaces.dto: {violations}"
     )

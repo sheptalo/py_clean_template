@@ -16,7 +16,4 @@ def test_interactors_subclass_iinteractor() -> None:
         if "IInteractor" not in {base_name(base) for base in node.bases}
     ]
 
-    assert not violations, (
-        "Every class in application/interactors must subclass IInteractor: "
-        f"{violations}"
-    )
+    assert not violations, f"Every class in application/interactors must subclass IInteractor: {violations}"

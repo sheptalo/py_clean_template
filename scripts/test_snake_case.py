@@ -26,13 +26,9 @@ def _bad_variable_names(path: Path) -> Iterator[str]:
     for node in ast.walk(parse(path)):
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
             continue
-        targets = (
-            node.targets if isinstance(node, ast.Assign) else [node.target]
-        )
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
         for target in targets:
-            if isinstance(target, ast.Name) and not (
-                _is_snake_case_or_constant(target.id)
-            ):
+            if isinstance(target, ast.Name) and not (_is_snake_case_or_constant(target.id)):
                 yield f"{rel}:{node.lineno}:{target.id}"
 
 
@@ -47,10 +43,6 @@ def test_file_names_are_snake_case() -> None:
 
 
 def test_variable_names_are_snake_case() -> None:
-    violations = [
-        name
-        for path in iter_all_python_files()
-        for name in _bad_variable_names(path)
-    ]
+    violations = [name for path in iter_all_python_files() for name in _bad_variable_names(path)]
 
     assert not violations, f"Variable names must be snake_case: {violations}"

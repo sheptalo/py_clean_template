@@ -16,6 +16,5 @@ def test_interfaces_are_prefixed_with_i() -> None:
     ]
 
     assert not violations, (
-        "Every class under application/interfaces must be named like "
-        f"IInteractor (I + PascalCase): {violations}"
+        f"Every class under application/interfaces must be named like IInteractor (I + PascalCase): {violations}"
     )

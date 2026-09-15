@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from dishka.integrations.fastapi import setup_dishka
+from dishka.integrations.fastapi import FastapiProvider, setup_dishka
 from fastapi import FastAPI
 
 from composition.bootstrap.container import make_container
@@ -25,7 +25,7 @@ def create_app() -> FastAPI:
 {%- if include_example %}
     app.include_router(items_router)
 {%- endif %}
-    setup_dishka(make_container(), app)
+    setup_dishka(make_container(FastapiProvider()), app)
     return app
 
 

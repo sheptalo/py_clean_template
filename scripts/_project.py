@@ -14,9 +14,7 @@ class PackageNotFoundError(RuntimeError):
 
 def find_package_dir() -> Path:
     for child in sorted(REPO_ROOT.iterdir()):
-        if child.is_dir() and all(
-            (child / layer).is_dir() for layer in _LAYERS
-        ):
+        if child.is_dir() and all((child / layer).is_dir() for layer in _LAYERS):
             return child
     raise PackageNotFoundError(REPO_ROOT)
 
@@ -24,9 +22,7 @@ def find_package_dir() -> Path:
 def iter_python_files(root: Path) -> list[Path]:
     if not root.is_dir():
         return []
-    return [
-        path for path in root.rglob("*.py") if "__pycache__" not in path.parts
-    ]
+    return [path for path in root.rglob("*.py") if "__pycache__" not in path.parts]
 
 
 def iter_all_python_files() -> list[Path]:
@@ -67,8 +63,4 @@ def base_name(node: ast.expr) -> str | None:
 
 
 def source_files(directory: Path) -> list[Path]:
-    return [
-        path
-        for path in iter_python_files(directory)
-        if path.name != "__init__.py"
-    ]
+    return [path for path in iter_python_files(directory) if path.name != "__init__.py"]

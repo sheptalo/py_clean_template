@@ -34,9 +34,7 @@ async def create_item(
     body: CreateItemRequest,
     create: FromDishka[IInteractor[CreateItemInput, ItemOutput]],
 ) -> ItemResponse:
-    item = await create(
-        CreateItemInput(name=body.name, quantity=body.quantity)
-    )
+    item = await create(CreateItemInput(name=body.name, quantity=body.quantity))
     return _to_response(item)
 
 
