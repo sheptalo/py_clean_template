@@ -1,10 +1,13 @@
 import ast
+import re
 from collections.abc import Iterator
+from functools import cache
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _LAYERS = ("domain", "application", "infrastructure", "presentation")
+_ARC_IGNORE = re.compile(r"#\s*arc:\s*ignore\[([^\]]+)\]")
 
 
 class PackageNotFoundError(RuntimeError):
@@ -60,6 +63,23 @@ def base_name(node: ast.expr) -> str | None:
     if isinstance(node, ast.Subscript):
         return base_name(node.value)
     return None
+
+
+@cache
+def _lines(path: Path) -> list[str]:
+    return path.read_text(encoding="utf-8").splitlines()
+
+
+def is_ignored(path: Path, line: int, rule: str) -> bool:
+    """Проверяет комментарий `# arc: ignore[rule, ...]` на строке нарушения.
+
+    Для нарушений уровня файла (например, имя файла) строка — первая.
+    """
+    lines = _lines(path)
+    if not 1 <= line <= len(lines):
+        return False
+    match = _ARC_IGNORE.search(lines[line - 1])
+    return match is not None and rule in {name.strip() for name in match.group(1).split(",")}
 
 
 def source_files(directory: Path) -> list[Path]:

@@ -1,4 +1,6 @@
-from scripts._project import find_package_dir, iter_classdefs, source_files
+from scripts._project import find_package_dir, is_ignored, iter_classdefs, source_files
+
+RULE = "interfaces-naming"
 
 
 def _is_interface_name(name: str) -> bool:
@@ -12,7 +14,7 @@ def test_interfaces_are_prefixed_with_i() -> None:
     violations = [
         f"{path.relative_to(package)}:{node.name}"
         for path, node in iter_classdefs(paths)
-        if not _is_interface_name(node.name)
+        if not _is_interface_name(node.name) and not is_ignored(path, node.lineno, RULE)
     ]
 
     assert not violations, (

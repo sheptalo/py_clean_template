@@ -73,6 +73,8 @@ uv run api --host 0.0.0.0 --port 8000 --workers 4
 
 Правила, какой код к какому слою относится, записаны в docstring `__init__.py` каждого слоя и `composition/__init__.py`. `AGENTS.md` обязывает AI-агентов читать их перед изменениями, а в Claude Code это проверяет хук `.claude/hooks/layer_conventions.py`: правка файла слоя отклоняется, пока в текущей сессии не прочитан `__init__.py` этого слоя.
 
+Проверки из `scripts/` (запускаются `pytest scripts` и pre-commit) можно точечно отключить комментарием `# arc: ignore[<правило>]` на строке нарушения: на строке `class` для классов, на строке присваивания для переменных, на первой строке файла для имени файла. Через запятую можно указать несколько правил, правило без имени не действует. Правила: `interfaces-naming`, `interactor-base-class`, `dto-decorator`, `snake-case-file`, `snake-case-variable` (константа `RULE` в каждом тесте). Новая проверка использует `is_ignored(path, line, RULE)` из `scripts/_project.py`. `AGENTS.md` запрещает AI-агентам ставить `arc: ignore`, а в Claude Code это проверяет хук `.claude/hooks/arc_ignore.py`.
+
 Главный пакет всегда называется по `project_name` (задаётся при генерации через copier) — не `app`/`src`/другое generic-имя, чтобы не было дрейфа имени пакета от имени репозитория в разных сгенерированных проектах.
 
 ## MCP-серверы

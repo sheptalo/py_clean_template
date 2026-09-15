@@ -4,10 +4,13 @@ from pathlib import Path
 from scripts._project import (
     base_name,
     find_package_dir,
+    is_ignored,
     iter_all_python_files,
     iter_classdefs,
     source_files,
 )
+
+RULE = "dto-decorator"
 
 
 def _interactor_dto_names(package: Path) -> set[str]:
@@ -32,8 +35,8 @@ def test_interactor_dtos_use_dto_decorator() -> None:
         return
 
     is_decorated = {
-        node.name: any(base_name(dec) == "dto" for dec in node.decorator_list)
-        for _, node in iter_classdefs(iter_all_python_files())
+        node.name: any(base_name(dec) == "dto" for dec in node.decorator_list) or is_ignored(path, node.lineno, RULE)
+        for path, node in iter_classdefs(iter_all_python_files())
         if node.name in dto_names
     }
 

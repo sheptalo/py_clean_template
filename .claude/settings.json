@@ -9,6 +9,15 @@
             "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/layer_conventions.py\""
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/arc_ignore.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
