@@ -22,3 +22,10 @@ _tasks:
 _exclude:
   - "README.md"
   - ".git"
+  - "copier.yaml"
+  - "copier.yml"
+  - "~*"
+  - "*.py[co]"
+  - "__pycache__"
+  - ".DS_Store"
+  - ".svn"
