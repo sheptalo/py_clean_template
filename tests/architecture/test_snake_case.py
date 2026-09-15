@@ -3,7 +3,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from scripts._project import REPO_ROOT, is_ignored, iter_all_python_files, parse
+from tests.architecture._project import REPO_ROOT, is_ignored, iter_all_python_files, parse
 
 FILE_RULE = "snake-case-file"
 VARIABLE_RULE = "snake-case-variable"

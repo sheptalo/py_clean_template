@@ -1,12 +1,12 @@
 from dishka import AsyncContainer, Provider, make_async_container
 
-from composition.bootstrap.interactors import InteractorProvider
 from composition.bootstrap.ports import InfrastructureProvider
+from composition.bootstrap.use_cases import UseCaseProvider
 
 
 def make_container(*extra: Provider) -> AsyncContainer:
     return make_async_container(
-        InteractorProvider(),
+        UseCaseProvider(),
         InfrastructureProvider(),
         *extra,
     )

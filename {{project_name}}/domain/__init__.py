@@ -1,27 +1,25 @@
-"""Слой domain — бизнес-правила, не зависящие от способа их вызова.
+"""Domain layer — business rules that do not depend on how they are invoked.
 
-Импорты: только стандартная библиотека. Нельзя: application,
-infrastructure, presentation, фреймворки, pydantic.
+Imports: standard library only. Forbidden: application, infrastructure,
+presentation, frameworks, pydantic.
 
-model/ — сущности и объекты-значения (dataclass).
-- Правило, которое касается одной сущности, — её метод, не сервис.
-- Правило доступа, зависящее от состояния сущности, — тоже её метод
-  (например, item.can_be_edited_by(user)). user — сущность, которую
-  интерактор загрузил из репозитория по идентификатору; данные
-  из запроса для этого не используются. Интерактор вызывает этот
-  метод и при отказе поднимает ошибку.
+Entities and value objects are dataclasses.
+- A rule that concerns a single entity is a method of that entity, not a
+  service. This includes access rules that depend on the entity's state.
+- Method arguments are entities and values prepared by the use case; raw
+  request data is never passed in.
 
-services/ — доменные сервисы.
-- Появляется, только если правило затрагивает несколько сущностей
-  и не принадлежит естественным образом ни одной из них.
-- Чистая функция или класс без состояния: на входе сущности и
-  значения, на выходе результат. Без I/O и без портов.
+Domain service.
+- Exists only when a rule involves several entities and does not
+  naturally belong to any one of them.
+- A pure function or a stateless class: entities and values in, a result
+  out. No I/O and no ports.
 
-constants/ — константы и перечисления из языка предметной области.
+Constants and enumerations come from the ubiquitous language.
 
-Сюда не относится:
-- Порт (репозиторий, шлюз, часы, таймер) → application/interfaces.
-- Сценарий «получить, изменить, сохранить» → application/interactors.
-- Формат для внешнего мира (JSON, ORM, сообщение брокера) →
-  infrastructure или presentation.
+Does not belong here:
+- A port (repository, gateway, clock, timer) → application/interfaces.
+- A "load, change, save" scenario → application/use_cases.
+- A format for the outside world (JSON, ORM, broker message) →
+  infrastructure or presentation.
 """

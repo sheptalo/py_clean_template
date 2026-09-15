@@ -10,12 +10,6 @@ include_dishka:
     type: bool
     help: Do you wanna include dishka with auto-wiring?
 
-include_example:
-    type: bool
-    default: false
-    when: "{{ include_fastapi and include_dishka }}"
-    help: Do you wanna include example code (Item slice, in-memory repository)?
-
 _tasks:
   - "uv sync"
 

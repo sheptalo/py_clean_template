@@ -1,47 +1,50 @@
-"""Слой application — сценарии использования и порты.
+"""Application layer — use cases and ports.
 
-Импорты: domain и стандартная библиотека. Нельзя: infrastructure,
-presentation, фреймворки.
+Imports: domain and the standard library. Forbidden: infrastructure,
+presentation, frameworks.
 
-interactors/ — один класс на один сценарий.
-- Наследует IInteractor[Input, Output] и помечен @interactor.
-- Зависимости объявлены полями и типизированы портами из interfaces/.
-- Только оркестрирует: получить данные через порты, вызвать доменную
-  логику, сохранить через порты. Бизнес-правил не содержит.
-- Проверяет права пользователя на сценарий. Presentation проверку
-  не делает: её обходит любой другой entrypoint (CLI, воркер).
-  Порядок: идентификатор текущего пользователя — из IIdentityProvider,
-  сущность пользователя — из репозитория по этому идентификатору,
-  решение про доступ — метод сущности или доменный сервис.
+use_cases/ — one class per scenario.
+- Subclasses IUseCase[Input, Output] and is decorated with @use_case.
+- Input is a dedicated @dto per use case, never None or a primitive.
+  A use case is registered in DI under IUseCase[Input, Output], so two
+  use cases with the same pair of types are not allowed: the container
+  will fail to build.
+- Dependencies are declared as fields typed with ports from interfaces/.
+- Orchestrates only: load data through ports, call domain logic, save
+  through ports. Contains no business rules.
+- Checks whether the current user may run the scenario. A check in
+  presentation is bypassed by any other entrypoint. The use case gets the
+  data for the decision through ports; the domain makes the decision.
 
-interfaces/ — порты: наследуют IPort, имя имеет префикс I (например,
-IItemRepository(IPort)), методы помечены @abstractmethod.
-- Реализация наследует порт и регистрируется в DI автоматически.
-- Порт лежит здесь, даже если нужен доменному сервису: домен порты
-  не импортирует.
-- IIdentityProvider возвращает только идентификатор текущего
-  пользователя примитивом (UUID, str) или None для анонима. Сущность,
-  роли и права он не возвращает: их загружает и проверяет интерактор.
+interfaces/ — ports: subclass IPort, the name starts with I (for example,
+IItemRepository(IPort)), methods are marked @abstractmethod.
+- An implementation subclasses the port and is registered in DI
+  automatically.
+- A port lives here even if a domain service needs it: the domain does
+  not import ports.
+- A port that reads the call context (current user, headers, environment)
+  returns primitives or DTOs, not entities. The use case loads entities
+  from that data through a repository.
 
-dto/ — входы и выходы интеракторов, помечены @dto.
-- Один тип на одну границу: DTO интерактора не используется как
-  HTTP-схема, ORM-модель или сообщение брокера.
+dto/ — use case inputs and outputs, decorated with @dto.
+- One type per boundary: a use case DTO is never used as an HTTP schema,
+  an ORM model or a broker message.
 
-Сервис в application допустим, только если это process manager,
-хранящий состояние между вызовами (координирует события во времени).
+A service in application is allowed only as a process manager that keeps
+state between calls (coordinates events over time).
 
-Ошибки domain не оборачиваются в ошибки application.
-- Если ошибка не меняет ход сценария, интерактор её не ловит: она
-  доходит до presentation как есть и там переводится в ответ.
-- Ловить ошибку domain можно, только чтобы пойти по другой ветке
-  сценария: except DomainError: handle_error().
-- Нельзя перевыбрасывать её как ошибку application:
+Domain errors are not wrapped into application errors.
+- If an error does not change the flow of the scenario, the use case does
+  not catch it: it reaches presentation as is and is turned into a
+  response there.
+- Catch a domain error only to take a different branch of the scenario:
+  except DomainError: handle_error().
+- Never re-raise it as an application error:
   except DomainError as error: raise AppError from error.
 
-Сюда не относится:
-- Правило, вычисляемое из сущностей без I/O → domain.
-- Перевод формата для внешней системы → infrastructure.
-- Реализация порта → infrastructure. Исключение: реализация
-  IIdentityProvider, которая достаёт идентификатор пользователя из
-  запроса (токен, сессия), → presentation.
+Does not belong here:
+- A rule computed from entities without I/O → domain.
+- Format translation for an external system → infrastructure.
+- A port implementation → infrastructure. An implementation that needs
+  the incoming request or the entrypoint context → presentation.
 """

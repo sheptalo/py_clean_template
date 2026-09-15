@@ -1,30 +1,27 @@
 import inspect
+from collections.abc import Callable
 from types import ModuleType
 
-from dishka import AnyOf, Provider, Scope{% if include_example %}, provide{% endif %}
+from dishka import AnyOf, Provider, Scope
+from pydantic_settings import BaseSettings
 
 from composition.bootstrap.utils import get_children, load_packages
 from {{ project_name }} import infrastructure
-{%- if include_example %}
-from {{ project_name }}.application.interfaces.item_repository import IItemRepository
-{%- endif %}
 from {{ project_name }}.application.interfaces.port import IPort
-{%- if include_example %}
-from {{ project_name }}.infrastructure.in_memory_item_repository import InMemoryItemRepository
-{%- endif %}
 
 
 def ports_of(cls: type) -> list[type]:
     return [base for base in cls.__mro__[1:] if issubclass(base, IPort) and inspect.isabstract(base)]
 
 
+def settings_factory[T: BaseSettings](cls: type[T]) -> Callable[[], T]:
+    def load() -> T:
+        return cls()
+
+    return load
+
+
 class PortProvider(Provider):
-    """Регистрирует реализации портов (наследников IPort) из переданных пакетов, scope — REQUEST.
-
-    Порт, объявленный в подклассе через provide(), авто-wiring пропускает:
-    так задаётся другой scope или выбирается одна из реализаций порта.
-    """
-
     def __init__(self, *packages: ModuleType) -> None:
         super().__init__()
         for package in packages:
@@ -35,14 +32,11 @@ class PortProvider(Provider):
             ports = [port for port in ports_of(cls) if port not in declared]
             if cls.__module__.startswith(prefixes) and ports and not inspect.isabstract(cls):
                 self.provide(cls, scope=Scope.REQUEST, provides=AnyOf[*ports])
+        for settings in get_children(BaseSettings):
+            if settings.__module__.startswith(prefixes) and settings not in declared:
+                self.provide(settings_factory(settings), scope=Scope.APP, provides=settings)
 
 
 class InfrastructureProvider(PortProvider):
-    """Реализации портов из infrastructure — общие для всех entrypoint'ов."""
-{%- if include_example %}
-
-    item_repository = provide(InMemoryItemRepository, scope=Scope.APP, provides=IItemRepository)
-{%- endif %}
-
     def __init__(self) -> None:
         super().__init__(infrastructure)

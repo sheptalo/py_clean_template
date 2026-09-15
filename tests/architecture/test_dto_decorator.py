@@ -1,7 +1,7 @@
 import ast
 from pathlib import Path
 
-from scripts._project import (
+from tests.architecture._project import (
     base_name,
     find_package_dir,
     is_ignored,
@@ -13,24 +13,24 @@ from scripts._project import (
 RULE = "dto-decorator"
 
 
-def _interactor_dto_names(package: Path) -> set[str]:
-    paths = source_files(package / "application" / "interactors")
+def _use_case_dto_names(package: Path) -> set[str]:
+    paths = source_files(package / "application" / "use_cases")
 
     names: set[str] = set()
     for _, node in iter_classdefs(paths):
         for base in node.bases:
             if not isinstance(base, ast.Subscript):
                 continue
-            if base_name(base) != "IInteractor":
+            if base_name(base) != "IUseCase":
                 continue
             args = base.slice.elts if isinstance(base.slice, ast.Tuple) else [base.slice]
             names.update(a.id for a in args if isinstance(a, ast.Name))
     return names
 
 
-def test_interactor_dtos_use_dto_decorator() -> None:
+def test_use_case_dtos_use_dto_decorator() -> None:
     package = find_package_dir()
-    dto_names = _interactor_dto_names(package)
+    dto_names = _use_case_dto_names(package)
     if not dto_names:
         return
 
@@ -41,9 +41,9 @@ def test_interactor_dtos_use_dto_decorator() -> None:
     }
 
     missing = dto_names - is_decorated.keys()
-    assert not missing, f"Interactor DTOs not found as classes: {missing}"
+    assert not missing, f"Use case DTOs not found as classes: {missing}"
 
     violations = [name for name, decorated in is_decorated.items() if not decorated]
     assert not violations, (
-        f"Interactor Input/Output DTOs must use the @dto decorator from application.interfaces.dto: {violations}"
+        f"Use case Input/Output DTOs must use the @dto decorator from application.interfaces.dto: {violations}"
     )

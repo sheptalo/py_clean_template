@@ -4,20 +4,18 @@ Copier-шаблон Python-проекта на Clean Architecture (в терми
 
 ## Архитектурные принципы
 
-Три конвергентные традиции для одних и тех же слоёв — используем словарь DDD, но решения ближе к Uncle Bob:
-
 | DDD (Evans) | Clean Architecture (Uncle Bob) | Hexagonal (Cockburn) |
 |---|---|---|
 | Domain | Entities | «ядро» |
-| Application | Use Cases (Interactor) | «ядро» |
+| Application | Use Cases | «ядро» |
 | Presentation | Interface Adapters → Controllers | driving-адаптеры |
 | Infrastructure | Interface Adapters → Gateways / Frameworks & Drivers | driven-адаптеры |
 | — | Main | Composition Root |
 
 Правила, которые из этого следуют и которые нужно соблюдать при добавлении кода:
 
-1. **Домен не знает о внешнем мире.** `domain/model` и `domain/services` — чистые python-объекты (`dataclass`, не `pydantic` — `pydantic`-семантика типа `.model_dump()` это уже зависимость от фреймворка, а не от языка). Направление зависимостей закреплено `import-linter`-контрактом в `pyproject.toml.jinja`: `presentation → infrastructure → application → domain`, обратные импорты — ошибка линтера.
-2. **Интерфейсы (порты) лежат в `application/interfaces`, не в `domain/`.** Даже если порт нужен доменному сервису — импорт наружу из `domain/services/*.py` в `application/interfaces/*` должен быть явным нарушением слоя, а не «соседним файлом», который проскальзывает мимо ревью.
+1. **Домен не знает о внешнем мире.** Сущности и доменные сервисы в `domain/` — чистые python-объекты (`dataclass`, не `pydantic` — `pydantic`-семантика типа `.model_dump()` это уже зависимость от фреймворка, а не от языка). Направление зависимостей закреплено `import-linter`-контрактом в `pyproject.toml.jinja`: `presentation → infrastructure → application → domain`, обратные импорты — ошибка линтера.
+2. **Интерфейсы (порты) лежат в `application/interfaces`, не в `domain/`.** Даже если порт нужен доменному сервису — импорт наружу из `domain/*.py` в `application/interfaces/*` должен быть явным нарушением слоя, а не «соседним файлом», который проскальзывает мимо ревью.
 3. **`Service` в application — легитимен только как process manager с состоянием между вызовами** (координирует что-то во времени). Если сервис на деле просто переводит формат в infrastructure или прячет бизнес-правило среди side-effect'ов — это симптом, что код лежит не в том слое.
 4. **DTO — один тип на одну границу с независимой причиной изменения.** Presentation-DTO и Gateway/Repository-DTO для одних и тех же данных не должны быть одним типом, даже если сейчас совпадают по полям. Исключение — Repository, ему можно передавать саму Entity, это его прямая работа.
 5. **Composition Root (`composition/`) — единственное место, которому разрешено знать про все конкретные классы всех слоёв.** Не Service Locator: контейнер собирается один раз при старте (фабрикой entrypoint'а, например `composition/api.py:create_app`), никто не резолвит его рантайм. Per-layer DI-провайдеры (`composition/bootstrap/` при `include_dishka`) могут импортировать только свои конкретные классы + абстракции — не конкретику соседних слоёв.
@@ -26,13 +24,11 @@ Copier-шаблон Python-проекта на Clean Architecture (в терми
 
 ```
 {{project_name}}/
-├── domain/
-│   ├── model/          # Entities — dataclass, без внешних зависимостей
-│   └── services/       # доменные сервисы (чистые функции/классы, без портов)
+├── domain/              # сущности, объекты-значения, доменные сервисы; exceptions.py — ошибки domain
 ├── application/
-│   ├── interactors/     # Use Cases — по одному классу на сценарий
+│   ├── use_cases/       # Use Cases — по одному классу на сценарий
 │   └── interfaces/       # порты (протоколы репозиториев, шлюзов и т.д.)
-│       ├── interactor.py # IInteractor[Input, Output] — базовый контракт use case'а
+│       ├── use_case.py   # IUseCase[Input, Output] — базовый контракт use case'а
 │       └── port.py       # IPort — базовый класс портов, по нему работает auto-wiring реализаций
 ├── infrastructure/      # реализации портов: БД, внешние API, брокеры
 └── presentation/
@@ -42,21 +38,20 @@ composition/                                  # Composition Root — снару�
 ├── api.py                                     # entrypoint HTTP: фабрика create_app() + main() для [project.scripts]
 └── bootstrap/                                  # если include_dishka
     ├── container.py                            # make_container() — общий граф провайдеров для всех entrypoint'ов
-    ├── interactors.py.jinja                    # auto-wiring: сканирует application.interactors,
-    │                                            # регистрирует все подклассы IInteractor в DI-контейнере
-    ├── ports.py.jinja                          # auto-wiring реализаций портов (IPort), scope REQUEST:
+    ├── use_cases.py.jinja                      # auto-wiring: сканирует application.use_cases,
+    │                                            # регистрирует все подклассы IUseCase в DI-контейнере
+    ├── ports.py.jinja                          # auto-wiring реализаций портов (IPort), scope REQUEST, и их
+    │                                            # настроек (BaseSettings), scope APP:
     │                                            # PortProvider(*пакеты) — для подпакета presentation entrypoint'а,
     │                                            # InfrastructureProvider — общий для всех; provide() в них
     │                                            # переопределяет scope или выбирает реализацию
     └── utils.py                                 # обход пакетов / поиск подклассов для auto-wiring
 
-scripts/            # служебные скрипты
 tests/               # тесты
-copier.yaml          # переменные шаблона: project_name, include_fastapi, include_dishka, include_example
+└── architecture/    # архитектурные проверки (именование, базовые классы, @dto, snake_case)
+copier.yaml          # переменные шаблона: project_name, include_fastapi, include_dishka
 pyproject.toml.jinja  # зависимости + import-linter контракт слоёв
 ```
-
-`include_example` (спрашивается только при `include_fastapi` + `include_dishka`) добавляет рабочий вертикальный срез `Item` — по одному файлу на слой: Entity → порт `IItemRepository` → DTO с `@dto` → интеракторы → `InMemoryItemRepository` → FastAPI-роутер `/items` со своими pydantic-схемами запроса/ответа и маппингом в/из DTO интерактора, плюс явный `provide()` в `InfrastructureProvider`, который переводит `InMemoryItemRepository` в scope APP (иначе данные терялись бы между запросами).
 
 ## Запуск
 
@@ -70,11 +65,23 @@ uv run api --reload
 uv run api --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-Новый entrypoint (воркер, CLI) — это модуль в `composition/` со своей функцией `main()` и строка в `[project.scripts]`. Он собирает контейнер как `make_container(<интеграция фреймворка>, PortProvider(<свой подпакет presentation>))`: реализации портов из `infrastructure` общие, а из подпакета `presentation` (например, `IIdentityProvider`, читающий `Request`) попадают только в контейнер этого entrypoint'а. Выбор реализации или scope только для одного entrypoint'а — `provide()` в подклассе `PortProvider` в его модуле.
+Новый entrypoint (воркер, CLI) — это модуль в `composition/` со своей функцией `main()` и строка в `[project.scripts]`. Он собирает контейнер как `make_container(<интеграция фреймворка>, PortProvider(<свой подпакет presentation>))`: реализации портов из `infrastructure` общие, а из подпакета `presentation` (например, реализация, которой нужен `Request`) попадают только в контейнер этого entrypoint'а. Выбор реализации или scope только для одного entrypoint'а — `provide()` в подклассе `PortProvider` в его модуле.
+
+Параметры адаптера (пути, URL, таймауты, ключи) описываются классом-наследником `BaseSettings` из `pydantic-settings` рядом с реализацией, со своим `env_prefix`. Реализация принимает его в `__init__`, а `PortProvider` регистрирует класс настроек из того же пакета сам, scope APP:
+
+```python
+class ExportSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="EXPORT_")
+    dir: Path
+
+
+class ExcelItemExporter(IItemExporter):
+    def __init__(self, settings: ExportSettings) -> None: ...
+```
 
 Правила, какой код к какому слою относится, записаны в docstring `__init__.py` каждого слоя и `composition/__init__.py`. `AGENTS.md` обязывает AI-агентов читать их перед изменениями, а в Claude Code это проверяет хук `.claude/hooks/layer_conventions.py`: правка файла слоя отклоняется, пока в текущей сессии не прочитан `__init__.py` этого слоя.
 
-Проверки из `scripts/` (запускаются `pytest scripts` и pre-commit) можно точечно отключить комментарием `# arc: ignore[<правило>]` на строке нарушения: на строке `class` для классов, на строке присваивания для переменных, на первой строке файла для имени файла. Через запятую можно указать несколько правил, правило без имени не действует. Правила: `interfaces-naming`, `interactor-base-class`, `dto-decorator`, `snake-case-file`, `snake-case-variable` (константа `RULE` в каждом тесте). Новая проверка использует `is_ignored(path, line, RULE)` из `scripts/_project.py`. `AGENTS.md` запрещает AI-агентам ставить `arc: ignore`, а в Claude Code это проверяет хук `.claude/hooks/arc_ignore.py`.
+Проверки из `tests/architecture` (запускаются `pytest tests/architecture` и pre-commit) можно точечно отключить комментарием `# arc: ignore[<правило>]` на строке нарушения: на строке `class` для классов, на строке присваивания для переменных, на первой строке файла для имени файла. Через запятую можно указать несколько правил, правило без имени не действует. Правила: `interfaces-naming`, `use-case-base-class`, `dto-decorator`, `snake-case-file`, `snake-case-variable` (константа `RULE` в каждом тесте). Новая проверка использует `is_ignored(path, line, RULE)` из `tests/architecture/_project.py`. `AGENTS.md` запрещает AI-агентам ставить `arc: ignore`, а в Claude Code это проверяет хук `.claude/hooks/arc_ignore.py`.
 
 Главный пакет всегда называется по `project_name` (задаётся при генерации через copier) — не `app`/`src`/другое generic-имя, чтобы не было дрейфа имени пакета от имени репозитория в разных сгенерированных проектах.
 

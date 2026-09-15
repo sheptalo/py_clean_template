@@ -1,4 +1,4 @@
-from scripts._project import find_package_dir, is_ignored, iter_classdefs, source_files
+from tests.architecture._project import find_package_dir, is_ignored, iter_classdefs, source_files
 
 RULE = "interfaces-naming"
 
@@ -18,5 +18,5 @@ def test_interfaces_are_prefixed_with_i() -> None:
     ]
 
     assert not violations, (
-        f"Every class under application/interfaces must be named like IInteractor (I + PascalCase): {violations}"
+        f"Every class under application/interfaces must be named like IUseCase (I + PascalCase): {violations}"
     )

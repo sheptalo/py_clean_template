@@ -1,0 +1,42 @@
+from typing import get_origin
+
+from dishka import Provider, Scope
+
+from composition.bootstrap.utils import get_children, load_packages
+from {{ project_name }}.application import use_cases
+from {{ project_name }}.application.interfaces.use_case import IUseCase
+
+load_packages(use_cases)
+
+
+class NotAUseCaseError(TypeError):
+    def __init__(self, cls: type) -> None:
+        super().__init__(f"{cls.__module__}.{cls.__qualname__} must subclass IUseCase[Input, Output]")
+
+
+class DuplicateUseCaseError(TypeError):
+    def __init__(self, key: type, first: type, second: type) -> None:
+        super().__init__(
+            f"{first.__module__}.{first.__qualname__} and {second.__module__}.{second.__qualname__} "
+            f"share DI key {key}: give each use case its own Input DTO"
+        )
+
+
+def orig_bases(cls: type) -> type[IUseCase[object, object]]:
+    bases: tuple[type[IUseCase[object, object]], ...] = getattr(cls, "__orig_bases__", ())
+    for base in bases:
+        if get_origin(base) is IUseCase:
+            return base
+    raise NotAUseCaseError(cls)
+
+
+class UseCaseProvider(Provider):
+    def __init__(self) -> None:
+        super().__init__()
+        registered: dict[type, type] = {}
+        for use_case in get_children(IUseCase):
+            key = orig_bases(use_case)
+            if key in registered:
+                raise DuplicateUseCaseError(key, registered[key], use_case)
+            registered[key] = use_case
+            self.provide(use_case, scope=Scope.REQUEST, provides=key)

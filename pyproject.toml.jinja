@@ -7,6 +7,7 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "pydantic-settings>=2.15.0",
     {% if include_fastapi %}"fastapi>=0.141.1",{% endif %}
     {% if include_fastapi %}"uvicorn>=0.52.4",{% endif %}
     {% if include_dishka %}"dishka>=1.10.1",{% endif %}
@@ -121,7 +122,6 @@ ignore = []
 fixable = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
-"scripts/**" = ["S101"]
 "tests/**" = ["S101"]
 ".claude/**" = ["INP001"]
 
@@ -129,7 +129,7 @@ fixable = ["ALL"]
 max-returns = 5
 
 [tool.mypy]
-{% if include_fastapi %}plugins = ["pydantic.mypy"]{% endif %}
+plugins = ["pydantic.mypy"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 warn_redundant_casts = true
@@ -164,7 +164,7 @@ layers = [
 [tool.coverage.run]
 source = ["{{ project_name }}"]
 branch = true
-omit = ["*/tests/*", "*/scripts/*"]
+omit = ["*/tests/*"]
 
 [tool.coverage.report]
 show_missing = true

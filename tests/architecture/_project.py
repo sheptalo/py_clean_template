@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from functools import cache
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _LAYERS = ("domain", "application", "infrastructure", "presentation")
 _ARC_IGNORE = re.compile(r"#\s*arc:\s*ignore\[([^\]]+)\]")
@@ -33,7 +33,6 @@ def iter_all_python_files() -> list[Path]:
     roots = [
         package,
         REPO_ROOT / "composition",
-        REPO_ROOT / "scripts",
         REPO_ROOT / "tests",
     ]
     files: list[Path] = []

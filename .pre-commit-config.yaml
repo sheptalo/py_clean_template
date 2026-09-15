@@ -44,7 +44,7 @@ repos:
 
       - id: architecture-tests
         name: architecture tests
-        entry: .venv/bin/pytest scripts
+        entry: .venv/bin/pytest tests/architecture
         language: system
         pass_filenames: false
         always_run: true

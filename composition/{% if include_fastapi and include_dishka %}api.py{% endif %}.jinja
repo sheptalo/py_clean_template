@@ -9,11 +9,6 @@ from fastapi import FastAPI
 from composition.bootstrap.container import make_container
 from composition.bootstrap.ports import PortProvider
 from {{ project_name }}.presentation import fastapi as fastapi_presentation
-{%- if include_example %}
-from {{ project_name }}.presentation.fastapi.items import (
-    router as items_router,
-)
-{%- endif %}
 
 
 @asynccontextmanager
@@ -24,9 +19,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="{{ project_name }}", lifespan=lifespan)
-{%- if include_example %}
-    app.include_router(items_router)
-{%- endif %}
     setup_dishka(make_container(FastapiProvider(), PortProvider(fastapi_presentation)), app)
     return app
 
