@@ -1,61 +1,61 @@
 # clean_template
 
-Copier-шаблон Python-проекта на Clean Architecture (в терминах DDD): `domain/` → `application/` → `infrastructure/`/`presentation/`, с явным Composition Root (`composition/`) снаружи всех колец. Опционально подключает FastAPI (`include_fastapi`) и dishka с авто-wiring (`include_dishka`).
+Copier template for a Python project built on Clean Architecture (in DDD terms): `domain/` → `application/` → `infrastructure/`/`presentation/`, with an explicit Composition Root (`composition/`) outside all rings. Optionally adds FastAPI (`include_fastapi`) and dishka with auto-wiring (`include_dishka`).
 
-## Архитектурные принципы
+## Architecture principles
 
 | DDD (Evans) | Clean Architecture (Uncle Bob) | Hexagonal (Cockburn) |
 |---|---|---|
-| Domain | Entities | «ядро» |
-| Application | Use Cases | «ядро» |
-| Presentation | Interface Adapters → Controllers | driving-адаптеры |
-| Infrastructure | Interface Adapters → Gateways / Frameworks & Drivers | driven-адаптеры |
+| Domain | Entities | core |
+| Application | Use Cases | core |
+| Presentation | Interface Adapters → Controllers | driving adapters |
+| Infrastructure | Interface Adapters → Gateways / Frameworks & Drivers | driven adapters |
 | — | Main | Composition Root |
 
-Правила, которые из этого следуют и которые нужно соблюдать при добавлении кода:
+Rules that follow from this and must be respected when adding code:
 
-1. **Домен не знает о внешнем мире.** Сущности и доменные сервисы в `domain/` — чистые python-объекты (`dataclass`, не `pydantic` — `pydantic`-семантика типа `.model_dump()` это уже зависимость от фреймворка, а не от языка). Направление зависимостей закреплено `import-linter`-контрактом в `pyproject.toml.jinja`: `presentation → infrastructure → application → domain`, обратные импорты — ошибка линтера.
-2. **Интерфейсы (порты) лежат в `application/interfaces`, не в `domain/`.** Даже если порт нужен доменному сервису — импорт наружу из `domain/*.py` в `application/interfaces/*` должен быть явным нарушением слоя, а не «соседним файлом», который проскальзывает мимо ревью.
-3. **`Service` в application — легитимен только как process manager с состоянием между вызовами** (координирует что-то во времени). Если сервис на деле просто переводит формат в infrastructure или прячет бизнес-правило среди side-effect'ов — это симптом, что код лежит не в том слое.
-4. **DTO — один тип на одну границу с независимой причиной изменения.** Presentation-DTO и Gateway/Repository-DTO для одних и тех же данных не должны быть одним типом, даже если сейчас совпадают по полям. Исключение — Repository, ему можно передавать саму Entity, это его прямая работа.
-5. **Composition Root (`composition/`) — единственное место, которому разрешено знать про все конкретные классы всех слоёв.** Не Service Locator: контейнер собирается один раз при старте (фабрикой entrypoint'а, например `composition/api.py:create_app`), никто не резолвит его рантайм. Per-layer DI-провайдеры (`composition/bootstrap/` при `include_dishka`) могут импортировать только свои конкретные классы + абстракции — не конкретику соседних слоёв.
+1. **The domain knows nothing about the outside world.** Entities and domain services in `domain/` are plain Python objects (`dataclass`, not `pydantic`: `pydantic` semantics such as `.model_dump()` are already a dependency on a framework, not on the language). The dependency direction is enforced by the `import-linter` contract in `pyproject.toml.jinja`: `presentation → infrastructure → application → domain`; reverse imports are a linter error.
+2. **Interfaces (ports) live in `application/interfaces`, not in `domain/`.** Even if a domain service needs a port, an import from `domain/*.py` into `application/interfaces/*` must be an explicit layer violation, not a "neighbouring file" that slips through review.
+3. **A `Service` in application is legitimate only as a process manager that keeps state between calls** (coordinates something over time). If a service actually just translates a format for infrastructure or hides a business rule among side effects, the code is in the wrong layer.
+4. **DTO: one type per boundary with an independent reason to change.** Presentation DTOs and Gateway/Repository DTOs for the same data must not be one type, even if their fields currently match. The exception is a Repository: it may receive the Entity itself, that is its job.
+5. **The Composition Root (`composition/`) is the only place allowed to know the concrete classes of every layer.** Not a Service Locator: the container is built once at startup (by the entrypoint factory, for example `composition/api.py:create_app`), and nothing resolves it at runtime. Per-layer DI providers (`composition/bootstrap/` with `include_dishka`) may import only their own concrete classes plus abstractions, not the concrete classes of other layers.
 
-## Структура проекта
+## Project structure
 
 ```
 {{project_name}}/
-├── domain/              # сущности, объекты-значения, доменные сервисы; exceptions.py — ошибки domain
+├── domain/              # entities, value objects, domain services; exceptions.py — domain errors
 ├── application/
-│   ├── use_cases/       # Use Cases — по одному классу на сценарий
-│   └── interfaces/       # порты (протоколы репозиториев, шлюзов и т.д.)
-│       ├── use_case.py   # IUseCase[Input, Output] — базовый контракт use case'а
-│       └── port.py       # IPort — базовый класс портов, по нему работает auto-wiring реализаций
-├── infrastructure/      # реализации портов: БД, внешние API, брокеры
+│   ├── use_cases/       # Use Cases — one class per scenario
+│   └── interfaces/       # ports (repository, gateway protocols, etc.)
+│       ├── use_case.py   # IUseCase[Input, Output] — base use case contract
+│       └── port.py       # IPort — base port class, used by auto-wiring of implementations
+├── infrastructure/      # port implementations: databases, external APIs, brokers
 └── presentation/
-    └── fastapi/          # HTTP-адаптер (если include_fastapi)
+    └── fastapi/          # HTTP adapter (with include_fastapi)
 
-composition/                                  # Composition Root — снаружи {{project_name}}/
-├── api.py                                     # entrypoint HTTP: фабрика create_app() + main() для [project.scripts]
-└── bootstrap/                                  # если include_dishka
-    ├── container.py                            # make_container() — общий граф провайдеров для всех entrypoint'ов
-    ├── use_cases.py.jinja                      # auto-wiring: сканирует application.use_cases,
-    │                                            # регистрирует все подклассы IUseCase в DI-контейнере
-    ├── ports.py.jinja                          # auto-wiring реализаций портов (IPort), scope REQUEST, и их
-    │                                            # настроек (BaseSettings), scope APP:
-    │                                            # PortProvider(*пакеты) — для подпакета presentation entrypoint'а,
-    │                                            # InfrastructureProvider — общий для всех; provide() в них
-    │                                            # переопределяет scope или выбирает реализацию
-    └── utils.py                                 # обход пакетов / поиск подклассов для auto-wiring
+composition/                                  # Composition Root — outside {{project_name}}/
+├── api.py                                     # HTTP entrypoint: create_app() factory + main() for [project.scripts]
+└── bootstrap/                                  # with include_dishka
+    ├── container.py                            # make_container() — provider graph shared by all entrypoints
+    ├── use_cases.py.jinja                      # auto-wiring: scans application.use_cases,
+    │                                            # registers every IUseCase subclass in the DI container
+    ├── ports.py.jinja                          # auto-wiring of port implementations (IPort), scope REQUEST, and
+    │                                            # their settings (BaseSettings), scope APP:
+    │                                            # PortProvider(*packages) — for an entrypoint's presentation subpackage,
+    │                                            # InfrastructureProvider — shared by all; provide() in them
+    │                                            # overrides the scope or picks an implementation
+    └── utils.py                                 # package traversal / subclass lookup for auto-wiring
 
-tests/               # тесты
-└── architecture/    # архитектурные проверки (именование, базовые классы, @dto, snake_case)
-copier.yaml          # переменные шаблона: project_name, include_fastapi, include_dishka
-pyproject.toml.jinja  # зависимости + import-linter контракт слоёв
+tests/               # tests
+└── architecture/    # architecture checks (naming, base classes, @dto, snake_case)
+copier.yaml          # template variables: project_name, include_fastapi, include_dishka
+pyproject.toml.jinja  # dependencies + import-linter layer contract
 ```
 
-## Запуск
+## Running
 
-Проект пакетируется (`uv_build`), entrypoint'ы объявлены в `[project.scripts]`. При `include_fastapi` + `include_dishka` есть команда `api` — обёртка над CLI uvicorn с уже подставленной фабрикой `composition.api:create_app`, поэтому доступны все флаги uvicorn:
+The project is packaged (`uv_build`), and entrypoints are declared in `[project.scripts]`. With `include_fastapi` + `include_dishka` there is an `api` command — a wrapper around the uvicorn CLI with the `composition.api:create_app` factory already set, so every uvicorn flag is available:
 
 ```bash
 uv run api --reload
@@ -65,9 +65,9 @@ uv run api --reload
 uv run api --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-Новый entrypoint (воркер, CLI) — это модуль в `composition/` со своей функцией `main()` и строка в `[project.scripts]`. Он собирает контейнер как `make_container(<интеграция фреймворка>, PortProvider(<свой подпакет presentation>))`: реализации портов из `infrastructure` общие, а из подпакета `presentation` (например, реализация, которой нужен `Request`) попадают только в контейнер этого entrypoint'а. Выбор реализации или scope только для одного entrypoint'а — `provide()` в подклассе `PortProvider` в его модуле.
+A new entrypoint (worker, CLI) is a module in `composition/` with its own `main()` function plus a line in `[project.scripts]`. It builds the container as `make_container(<framework integration>, PortProvider(<its presentation subpackage>))`: port implementations from `infrastructure` are shared, while those from the `presentation` subpackage (for example, an implementation that needs `Request`) go only into this entrypoint's container. A choice of implementation or scope for a single entrypoint is a `provide()` in a `PortProvider` subclass in its module.
 
-Параметры адаптера (пути, URL, таймауты, ключи) описываются классом-наследником `BaseSettings` из `pydantic-settings` рядом с реализацией, со своим `env_prefix`. Реализация принимает его в `__init__`, а `PortProvider` регистрирует класс настроек из того же пакета сам, scope APP:
+Adapter parameters (paths, URLs, timeouts, keys) are described by a `BaseSettings` subclass from `pydantic-settings` next to the implementation, with its own `env_prefix`. The implementation receives it in `__init__`, and `PortProvider` registers the settings class from the same package automatically, scope APP:
 
 ```python
 class ExportSettings(BaseSettings):
@@ -79,20 +79,20 @@ class ExcelItemExporter(IItemExporter):
     def __init__(self, settings: ExportSettings) -> None: ...
 ```
 
-Правила, какой код к какому слою относится, записаны в docstring `__init__.py` каждого слоя и `composition/__init__.py`. `AGENTS.md` обязывает AI-агентов читать их перед изменениями, а в Claude Code это проверяет хук `.claude/hooks/layer_conventions.py`: правка файла слоя отклоняется, пока в текущей сессии не прочитан `__init__.py` этого слоя.
+The rules for which code belongs to which layer are written in the docstring of each layer's `__init__.py` and of `composition/__init__.py`. `AGENTS.md` requires AI agents to read them before making changes, and in Claude Code this is enforced by the `.claude/hooks/layer_conventions.py` hook: an edit to a layer file is rejected until that layer's `__init__.py` has been read in the current session.
 
-Проверки из `tests/architecture` (запускаются `pytest tests/architecture` и pre-commit) можно точечно отключить комментарием `# arc: ignore[<правило>]` на строке нарушения: на строке `class` для классов, на строке присваивания для переменных, на первой строке файла для имени файла. Через запятую можно указать несколько правил, правило без имени не действует. Правила: `interfaces-naming`, `use-case-base-class`, `dto-decorator`, `snake-case-file`, `snake-case-variable` (константа `RULE` в каждом тесте). Новая проверка использует `is_ignored(path, line, RULE)` из `tests/architecture/_project.py`. `AGENTS.md` запрещает AI-агентам ставить `arc: ignore`, а в Claude Code это проверяет хук `.claude/hooks/arc_ignore.py`.
+Checks in `tests/architecture` (run by `pytest tests/architecture` and pre-commit) can be disabled selectively with a `# arc: ignore[<rule>]` comment on the violating line: the `class` line for classes, the assignment line for variables, the first line of the file for the file name. Several rules can be listed separated by commas; a comment without a rule name has no effect. Rules: `interfaces-naming`, `use-case-base-class`, `dto-decorator`, `snake-case-file`, `snake-case-variable` (the `RULE` constant in each test). A new check uses `is_ignored(path, line, RULE)` from `tests/architecture/_project.py`. `AGENTS.md` forbids AI agents from adding `arc: ignore`, and in Claude Code this is enforced by the `.claude/hooks/arc_ignore.py` hook.
 
-Главный пакет всегда называется по `project_name` (задаётся при генерации через copier) — не `app`/`src`/другое generic-имя, чтобы не было дрейфа имени пакета от имени репозитория в разных сгенерированных проектах.
+The main package is always named after `project_name` (set when generating with copier), not `app`/`src`/another generic name, so the package name does not drift from the repository name across generated projects.
 
-## MCP-серверы
+## MCP servers
 
-Рекомендуемые MCP-серверы для разработки с AI-ассистентами. Подключаются в настройках вашего харнесса (Claude Code, Codex, Cursor и т.д.).
+Recommended MCP servers for development with AI assistants. Configure them in your harness settings (Claude Code, Codex, Cursor, etc.).
 
-| Сервер | Назначение | Установка | GitHub |
+| Server | Purpose | Installation | GitHub |
 |---|---|---|---|
-| `codebase-memory-mcp` | Граф знаний кода (structural search, call graph, архитектурный обзор) | статический бинарь, положить на `PATH` как `codebase-memory-mcp` | [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) |
-| `ast-grep` | AST-aware поиск/рефакторинг по структурным паттернам | `uvx --from git+https://github.com/ast-grep/ast-grep-mcp ast-grep-server` | [ast-grep/ast-grep-mcp](https://github.com/ast-grep/ast-grep-mcp) |
-| `language-server` | LSP-инструменты (definition, references, rename, diagnostics) поверх `pyright` | `go install github.com/isaacphi/mcp-language-server@latest` → бинарь `mcp-language-server` на `PATH` | [isaacphi/mcp-language-server](https://github.com/isaacphi/mcp-language-server) |
+| `codebase-memory-mcp` | Code knowledge graph (structural search, call graph, architecture overview) | static binary, put it on `PATH` as `codebase-memory-mcp` | [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) |
+| `ast-grep` | AST-aware search/refactoring by structural patterns | `uvx --from git+https://github.com/ast-grep/ast-grep-mcp ast-grep-server` | [ast-grep/ast-grep-mcp](https://github.com/ast-grep/ast-grep-mcp) |
+| `language-server` | LSP tools (definition, references, rename, diagnostics) on top of `pyright` | `go install github.com/isaacphi/mcp-language-server@latest` → `mcp-language-server` binary on `PATH` | [isaacphi/mcp-language-server](https://github.com/isaacphi/mcp-language-server) |
 
-`ast-grep` не требует отдельной установки — `uvx` тянет и запускает его сам. `codebase-memory-mcp` и `mcp-language-server` нужно установить заранее (перейти по ссылке на GitHub — там есть инструкция и релизы для скачивания). `mcp-language-server` работает поверх установленного `pyright`: `mcp-language-server --workspace . --lsp pyright-langserver -- --stdio`.
+`ast-grep` needs no separate installation: `uvx` fetches and runs it. `codebase-memory-mcp` and `mcp-language-server` must be installed beforehand (follow the GitHub link for instructions and release downloads). `mcp-language-server` runs on top of an installed `pyright`: `mcp-language-server --workspace . --lsp pyright-langserver -- --stdio`.

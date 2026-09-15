@@ -1,26 +1,26 @@
-"""Composition Root — сборка и запуск приложения, снаружи всех слоёв.
+"""Composition Root — assembling and starting the application, outside all layers.
 
-Единственное место, которому разрешено знать конкретные классы всех
-слоёв.
+The only place allowed to know the concrete classes of every layer.
 
-Сюда относится:
-- Entrypoint'ы: фабрики запускаемых приложений (например, api.py) и
-  функции main() для [project.scripts]. Клиенты внешних систем, которые
-  нужны реализациям портов, к ним не относятся: их фабрики лежат
-  в infrastructure.
-- DI-провайдеры и выбор реализаций портов (bootstrap/).
-- Общий граф провайдеров для всех entrypoint'ов (bootstrap/container):
-  use case, реализации портов, настройки и фабрики клиентов из
-  infrastructure. Общий для всех entrypoint'ов выбор реализации или
-  scope — provide() в InfrastructureProvider.
-- Провайдеры отдельного entrypoint: entrypoint передаёт в
-  make_container() интеграцию своего фреймворка и PortProvider(<свой
-  подпакет presentation>). Выбор реализации или scope только для
-  одного entrypoint — provide() в подклассе PortProvider в модуле
-  этого entrypoint.
+Belongs here:
+- Entrypoints: factories of runnable applications (for example, api.py)
+  and main() functions for [project.scripts]. Clients of external systems
+  needed by port implementations are not entrypoints: their factories
+  live in infrastructure.
+- DI providers and the choice of port implementations (bootstrap/).
+- The provider graph shared by all entrypoints (bootstrap/container): use
+  cases, port implementations, settings and client factories from
+  infrastructure. A choice of implementation or scope shared by all
+  entrypoints is a provide() in InfrastructureProvider.
+- Providers of a single entrypoint: the entrypoint passes its framework
+  integration and PortProvider(<its presentation subpackage>) to
+  make_container(). A choice of implementation or scope for one
+  entrypoint only is a provide() in a PortProvider subclass in that
+  entrypoint's module.
 
-Сюда не относится:
-- Любая логика, кроме сборки и запуска: бизнес-правила → domain,
-  сценарии → application, адаптеры → infrastructure или presentation.
-- Получение зависимостей из контейнера в коде слоёв (Service Locator).
+Does not belong here:
+- Any logic other than assembling and starting: business rules → domain,
+  scenarios → application, adapters → infrastructure or presentation.
+- Resolving dependencies from the container inside layer code (Service
+  Locator).
 """

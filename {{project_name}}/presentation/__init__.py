@@ -1,32 +1,32 @@
-"""Слой presentation — входящие адаптеры: HTTP, CLI, консьюмеры.
+"""Presentation layer — driving adapters: HTTP, CLI, consumers.
 
-Импорты: application (IUseCase, DTO, порты) и фреймворки. Из domain —
-только исключения, чтобы перевести их в ответ. Нельзя: сущности и
-объекты-значения domain; конкретные классы infrastructure — их
-подставляет composition.
+Imports: application (IUseCase, DTOs, ports) and frameworks. From domain —
+only exceptions, to turn them into responses. Forbidden: domain entities
+and value objects; concrete infrastructure classes — composition injects
+them.
 
-Сюда относится:
-- Свои схемы запроса и ответа. DTO use case и сущности наружу
-  не отдаются.
-- Маппинг: схема запроса → DTO use case, DTO → схема ответа.
-- Вызов use case, полученного через DI как IUseCase[In, Out].
-- Транспортные детали: коды ответа, заголовки, валидация формата.
-- Реализации портов, которым нужен входящий запрос или контекст
-  entrypoint. Они извлекают данные из запроса и возвращают примитивы
-  или DTO: в хранилища не ходят, сущности не создают, domain
-  не импортируют.
+Belongs here:
+- Own request and response schemas. Use case DTOs and entities are never
+  exposed.
+- Mapping: request schema → use case DTO, DTO → response schema.
+- Calling a use case obtained from DI as IUseCase[In, Out].
+- Transport details: status codes, headers, format validation.
+- Port implementations that need the incoming request or the entrypoint
+  context. They extract data from the request and return primitives or
+  DTOs: they do not access storage, do not create entities and do not
+  import domain.
 
-Регистрация в DI:
-- Реализации портов и их настройки (BaseSettings) лежат в подпакете
-  своего entrypoint (presentation/fastapi, presentation/cli) и попадают
-  только в контейнер этого entrypoint через PortProvider(<подпакет>).
-- Реализации в корне presentation не регистрируются.
+DI registration:
+- Port implementations and their settings (BaseSettings) live in the
+  subpackage of their entrypoint (presentation/fastapi, presentation/cli)
+  and are added only to that entrypoint's container via
+  PortProvider(<subpackage>).
+- Implementations in the presentation root are not registered.
 
-Сюда не относится:
-- Бизнес-правила и ветвления по предметной логике → domain или
-  application.
-- Загрузка сущностей и проверка прав → use case в application.
-- Обращения к хранилищам и внешним системам → infrastructure,
-  через порт.
-- Создание приложения и контейнера, запуск сервера → composition.
+Does not belong here:
+- Business rules and branching on domain logic → domain or application.
+- Loading entities and checking permissions → use case in application.
+- Access to storage and external systems → infrastructure, through a port.
+- Creating the application and the container, starting the server →
+  composition.
 """
