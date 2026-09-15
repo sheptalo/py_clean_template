@@ -11,9 +11,12 @@
 - Имя отражает технологию и порт: InMemoryItemRepository,
   SqlItemRepository.
 
-Реализация порта попадает в DI сама, scope по умолчанию — REQUEST. Другой scope
-или выбор одной из нескольких реализаций порта задаётся через
-provide() в PortProvider (composition/bootstrap/ports.py).
+Реализация порта попадает в общий контейнер всех entrypoint'ов сама,
+scope по умолчанию — REQUEST. Другой scope или выбор одной из
+нескольких реализаций порта задаётся через provide() в
+InfrastructureProvider (composition/bootstrap/ports.py). Реализация
+для одного entrypoint (например, зависит от Request) лежит
+в presentation.
 
 Сюда не относится:
 - Бизнес-правила и решения «что делать» → domain или application.

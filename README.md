@@ -44,9 +44,10 @@ composition/                                  # Composition Root — снару�
     ├── container.py                            # make_container() — общий граф провайдеров для всех entrypoint'ов
     ├── interactors.py.jinja                    # auto-wiring: сканирует application.interactors,
     │                                            # регистрирует все подклассы IInteractor в DI-контейнере
-    ├── ports.py.jinja                          # auto-wiring: регистрирует реализации портов (IPort) из
-    │                                            # infrastructure и presentation, scope REQUEST; provide() в
-    │                                            # PortProvider переопределяет scope или выбирает реализацию
+    ├── ports.py.jinja                          # auto-wiring реализаций портов (IPort), scope REQUEST:
+    │                                            # PortProvider(*пакеты) — для подпакета presentation entrypoint'а,
+    │                                            # InfrastructureProvider — общий для всех; provide() в них
+    │                                            # переопределяет scope или выбирает реализацию
     └── utils.py                                 # обход пакетов / поиск подклассов для auto-wiring
 
 scripts/            # служебные скрипты
@@ -55,7 +56,7 @@ copier.yaml          # переменные шаблона: project_name, includ
 pyproject.toml.jinja  # зависимости + import-linter контракт слоёв
 ```
 
-`include_example` (спрашивается только при `include_fastapi` + `include_dishka`) добавляет рабочий вертикальный срез `Item` — по одному файлу на слой: Entity → порт `IItemRepository` → DTO с `@dto` → интеракторы → `InMemoryItemRepository` → FastAPI-роутер `/items` со своими pydantic-схемами запроса/ответа и маппингом в/из DTO интерактора, плюс явный `provide()` в `PortProvider`, который переводит `InMemoryItemRepository` в scope APP (иначе данные терялись бы между запросами).
+`include_example` (спрашивается только при `include_fastapi` + `include_dishka`) добавляет рабочий вертикальный срез `Item` — по одному файлу на слой: Entity → порт `IItemRepository` → DTO с `@dto` → интеракторы → `InMemoryItemRepository` → FastAPI-роутер `/items` со своими pydantic-схемами запроса/ответа и маппингом в/из DTO интерактора, плюс явный `provide()` в `InfrastructureProvider`, который переводит `InMemoryItemRepository` в scope APP (иначе данные терялись бы между запросами).
 
 ## Запуск
 
@@ -69,7 +70,7 @@ uv run api --reload
 uv run api --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-Новый entrypoint (воркер, CLI) — это модуль в `composition/` со своей функцией `main()`, использующий `make_container()`, и строка в `[project.scripts]`.
+Новый entrypoint (воркер, CLI) — это модуль в `composition/` со своей функцией `main()` и строка в `[project.scripts]`. Он собирает контейнер как `make_container(<интеграция фреймворка>, PortProvider(<свой подпакет presentation>))`: реализации портов из `infrastructure` общие, а из подпакета `presentation` (например, `IIdentityProvider`, читающий `Request`) попадают только в контейнер этого entrypoint'а. Выбор реализации или scope только для одного entrypoint'а — `provide()` в подклассе `PortProvider` в его модуле.
 
 Правила, какой код к какому слою относится, записаны в docstring `__init__.py` каждого слоя и `composition/__init__.py`. `AGENTS.md` обязывает AI-агентов читать их перед изменениями, а в Claude Code это проверяет хук `.claude/hooks/layer_conventions.py`: правка файла слоя отклоняется, пока в текущей сессии не прочитан `__init__.py` этого слоя.
 

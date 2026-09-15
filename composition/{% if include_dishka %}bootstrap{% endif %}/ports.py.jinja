@@ -1,9 +1,10 @@
 import inspect
+from types import ModuleType
 
 from dishka import AnyOf, Provider, Scope{% if include_example %}, provide{% endif %}
 
 from composition.bootstrap.utils import get_children, load_packages
-from {{ project_name }} import infrastructure, presentation
+from {{ project_name }} import infrastructure
 {%- if include_example %}
 from {{ project_name }}.application.interfaces.item_repository import IItemRepository
 {%- endif %}
@@ -12,29 +13,36 @@ from {{ project_name }}.application.interfaces.port import IPort
 from {{ project_name }}.infrastructure.in_memory_item_repository import InMemoryItemRepository
 {%- endif %}
 
-load_packages(infrastructure)
-load_packages(presentation)
-
 
 def ports_of(cls: type) -> list[type]:
     return [base for base in cls.__mro__[1:] if issubclass(base, IPort) and inspect.isabstract(base)]
 
 
 class PortProvider(Provider):
-    """Регистрирует реализации портов (наследников IPort), scope — REQUEST.
+    """Регистрирует реализации портов (наследников IPort) из переданных пакетов, scope — REQUEST.
 
-    Порт, объявленный здесь через provide(), авто-wiring пропускает: так
-    задаётся другой scope или выбирается одна из реализаций порта.
+    Порт, объявленный в подклассе через provide(), авто-wiring пропускает:
+    так задаётся другой scope или выбирается одна из реализаций порта.
     """
+
+    def __init__(self, *packages: ModuleType) -> None:
+        super().__init__()
+        for package in packages:
+            load_packages(package)
+        prefixes = tuple(f"{package.__name__}." for package in packages)
+        declared = {factory.provides.type_hint for factory in self.factories}
+        for cls in get_children(IPort):
+            ports = [port for port in ports_of(cls) if port not in declared]
+            if cls.__module__.startswith(prefixes) and ports and not inspect.isabstract(cls):
+                self.provide(cls, scope=Scope.REQUEST, provides=AnyOf[*ports])
+
+
+class InfrastructureProvider(PortProvider):
+    """Реализации портов из infrastructure — общие для всех entrypoint'ов."""
 {%- if include_example %}
 
     item_repository = provide(InMemoryItemRepository, scope=Scope.APP, provides=IItemRepository)
 {%- endif %}
 
     def __init__(self) -> None:
-        super().__init__()
-        declared = {factory.provides.type_hint for factory in self.factories}
-        for cls in get_children(IPort):
-            ports = [port for port in ports_of(cls) if port not in declared]
-            if ports and not inspect.isabstract(cls):
-                self.provide(cls, scope=Scope.REQUEST, provides=AnyOf[*ports])
+        super().__init__(infrastructure)
