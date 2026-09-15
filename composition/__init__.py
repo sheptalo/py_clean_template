@@ -7,16 +7,14 @@ Belongs here:
   and main() functions for [project.scripts]. Clients of external systems
   needed by port implementations are not entrypoints: their factories
   live in infrastructure.
-- DI providers and the choice of port implementations (bootstrap/).
+- DI providers, registration and the choice of port implementations
+  (bootstrap/).
 - The provider graph shared by all entrypoints (bootstrap/container): use
   cases, port implementations, settings and client factories from
-  infrastructure. A choice of implementation or scope shared by all
-  entrypoints is a provide() in InfrastructureProvider.
-- Providers of a single entrypoint: the entrypoint passes its framework
-  integration and PortProvider(<its presentation subpackage>) to
-  make_container(). A choice of implementation or scope for one
-  entrypoint only is a provide() in a PortProvider subclass in that
-  entrypoint's module.
+  infrastructure.
+- Providers of a single entrypoint: its framework integration and the
+  registrations from its presentation subpackage, passed by the
+  entrypoint to make_container().
 
 Does not belong here:
 - Any logic other than assembling and starting: business rules → domain,

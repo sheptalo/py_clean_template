@@ -8,7 +8,19 @@ include_fastapi:
 
 include_dishka:
     type: bool
-    help: Do you wanna include dishka with auto-wiring?
+    help: Do you wanna include dishka?
+
+auto_wire_use_cases:
+    type: bool
+    default: true
+    when: "{{ include_dishka }}"
+    help: Register use cases in DI automatically (scan application.use_cases)?
+
+auto_wire_ports:
+    type: bool
+    default: true
+    when: "{{ include_dishka }}"
+    help: Register port implementations and their settings in DI automatically?
 
 _tasks:
   - "uv sync"

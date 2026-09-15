@@ -16,12 +16,9 @@ Belongs here:
   DTOs: they do not access storage, do not create entities and do not
   import domain.
 
-DI registration:
-- Port implementations and their settings (BaseSettings) live in the
-  subpackage of their entrypoint (presentation/fastapi, presentation/cli)
-  and are added only to that entrypoint's container via
-  PortProvider(<subpackage>).
-- Implementations in the presentation root are not registered.
+DI registration: port implementations and their settings (BaseSettings)
+live in the subpackage of their entrypoint (presentation/fastapi,
+presentation/cli) and go only into that entrypoint's container.
 
 Does not belong here:
 - Business rules and branching on domain logic → domain or application.

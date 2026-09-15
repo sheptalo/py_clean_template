@@ -7,8 +7,10 @@ from dishka.integrations.fastapi import FastapiProvider, setup_dishka
 from fastapi import FastAPI
 
 from composition.bootstrap.container import make_container
+{%- if auto_wire_ports %}
 from composition.bootstrap.ports import PortProvider
 from {{ project_name }}.presentation import fastapi as fastapi_presentation
+{%- endif %}
 
 
 @asynccontextmanager
@@ -19,7 +21,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="{{ project_name }}", lifespan=lifespan)
+{%- if auto_wire_ports %}
     setup_dishka(make_container(FastapiProvider(), PortProvider(fastapi_presentation)), app)
+{%- else %}
+    setup_dishka(make_container(FastapiProvider()), app)
+{%- endif %}
     return app
 
 

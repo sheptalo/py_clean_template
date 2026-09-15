@@ -1,3 +1,4 @@
+{% if auto_wire_use_cases -%}
 from typing import get_origin
 
 from dishka import Provider, Scope
@@ -40,3 +41,10 @@ class UseCaseProvider(Provider):
                 raise DuplicateUseCaseError(key, registered[key], use_case)
             registered[key] = use_case
             self.provide(use_case, scope=Scope.REQUEST, provides=key)
+{%- else -%}
+from dishka import Provider
+
+
+class UseCaseProvider(Provider):
+    pass
+{%- endif %}

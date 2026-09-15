@@ -1,6 +1,6 @@
 # clean_template
 
-Copier template for a Python project built on Clean Architecture (in DDD terms): `domain/` → `application/` → `infrastructure/`/`presentation/`, with an explicit Composition Root (`composition/`) outside all rings. Optionally adds FastAPI (`include_fastapi`) and dishka with auto-wiring (`include_dishka`).
+Copier template for a Python project built on Clean Architecture (in DDD terms): `domain/` → `application/` → `infrastructure/`/`presentation/`, with an explicit Composition Root (`composition/`) outside all rings. Optionally adds FastAPI (`include_fastapi`) and dishka (`include_dishka`); with dishka, auto-wiring of use cases (`auto_wire_use_cases`) and of port implementations with their settings (`auto_wire_ports`) is switched on or off separately.
 
 ## Architecture principles
 
@@ -38,18 +38,19 @@ composition/                                  # Composition Root — outside {{p
 ├── api.py                                     # HTTP entrypoint: create_app() factory + main() for [project.scripts]
 └── bootstrap/                                  # with include_dishka
     ├── container.py                            # make_container() — provider graph shared by all entrypoints
-    ├── use_cases.py.jinja                      # auto-wiring: scans application.use_cases,
-    │                                            # registers every IUseCase subclass in the DI container
-    ├── ports.py.jinja                          # auto-wiring of port implementations (IPort), scope REQUEST, and
-    │                                            # their settings (BaseSettings), scope APP:
+    ├── use_cases.py.jinja                      # UseCaseProvider; with auto_wire_use_cases scans application.use_cases
+    │                                            # and registers every IUseCase subclass, otherwise empty for provide()
+    ├── ports.py.jinja                          # InfrastructureProvider; with auto_wire_ports registers port
+    │                                            # implementations (IPort), scope REQUEST, and settings (BaseSettings), scope APP:
     │                                            # PortProvider(*packages) — for an entrypoint's presentation subpackage,
     │                                            # InfrastructureProvider — shared by all; provide() in them
-    │                                            # overrides the scope or picks an implementation
+    │                                            # overrides the scope or picks an implementation;
+    │                                            # without auto_wire_ports InfrastructureProvider is empty for provide()
     └── utils.py                                 # package traversal / subclass lookup for auto-wiring
 
 tests/               # tests
 └── architecture/    # architecture checks (naming, base classes, @dto, snake_case)
-copier.yaml          # template variables: project_name, include_fastapi, include_dishka
+copier.yaml          # template variables: project_name, include_fastapi, include_dishka, auto_wire_use_cases, auto_wire_ports
 pyproject.toml.jinja  # dependencies + import-linter layer contract
 ```
 
@@ -65,9 +66,9 @@ uv run api --reload
 uv run api --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-A new entrypoint (worker, CLI) is a module in `composition/` with its own `main()` function plus a line in `[project.scripts]`. It builds the container as `make_container(<framework integration>, PortProvider(<its presentation subpackage>))`: port implementations from `infrastructure` are shared, while those from the `presentation` subpackage (for example, an implementation that needs `Request`) go only into this entrypoint's container. A choice of implementation or scope for a single entrypoint is a `provide()` in a `PortProvider` subclass in its module.
+A new entrypoint (worker, CLI) is a module in `composition/` with its own `main()` function plus a line in `[project.scripts]`. With `auto_wire_ports` it builds the container as `make_container(<framework integration>, PortProvider(<its presentation subpackage>))`: port implementations from `infrastructure` are shared, while those from the `presentation` subpackage (for example, an implementation that needs `Request`) go only into this entrypoint's container. A choice of implementation or scope for a single entrypoint is a `provide()` in a `PortProvider` subclass in its module. Without `auto_wire_ports` the entrypoint passes its own provider with explicit `provide()` calls instead of `PortProvider`.
 
-Adapter parameters (paths, URLs, timeouts, keys) are described by a `BaseSettings` subclass from `pydantic-settings` next to the implementation, with its own `env_prefix`. The implementation receives it in `__init__`, and `PortProvider` registers the settings class from the same package automatically, scope APP:
+Adapter parameters (paths, URLs, timeouts, keys) are described by a `BaseSettings` subclass from `pydantic-settings` next to the implementation, with its own `env_prefix`. The implementation receives it in `__init__`. With `auto_wire_ports`, `PortProvider` registers the settings class from the same package automatically, scope APP; without it the settings class is registered with `provide()` like any other dependency:
 
 ```python
 class ExportSettings(BaseSettings):

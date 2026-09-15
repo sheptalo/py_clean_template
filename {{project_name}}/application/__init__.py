@@ -6,9 +6,8 @@ presentation, frameworks.
 use_cases/ — one class per scenario.
 - Subclasses IUseCase[Input, Output] and is decorated with @use_case.
 - Input is a dedicated @dto per use case, never None or a primitive.
-  A use case is registered in DI under IUseCase[Input, Output], so two
-  use cases with the same pair of types are not allowed: the container
-  will fail to build.
+  The DI key of a use case is IUseCase[Input, Output], so two use cases
+  must not share the same pair of types.
 - Dependencies are declared as fields typed with ports from interfaces/.
 - Orchestrates only: load data through ports, call domain logic, save
   through ports. Contains no business rules.
@@ -18,8 +17,7 @@ use_cases/ — one class per scenario.
 
 interfaces/ — ports: subclass IPort, the name starts with I (for example,
 IItemRepository(IPort)), methods are marked @abstractmethod.
-- An implementation subclasses the port and is registered in DI
-  automatically.
+- An implementation subclasses the port.
 - A port lives here even if a domain service needs it: the domain does
   not import ports.
 - A port that reads the call context (current user, headers, environment)

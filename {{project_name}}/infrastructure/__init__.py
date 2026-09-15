@@ -17,12 +17,9 @@ Belongs here:
   Implementations receive the ready client in __init__ and never create
   it themselves.
 
-DI registration:
-- Port implementations (scope REQUEST) and settings classes (scope APP)
-  are added to the container shared by all entrypoints automatically.
-- Client factories are registered explicitly with provide() in
-  InfrastructureProvider (composition/bootstrap/ports.py). The same place
-  overrides the scope or picks one of several implementations.
+DI registration: implementations, settings and client factories from
+infrastructure go into the container shared by all entrypoints; they are
+registered in composition.
 
 Does not belong here:
 - Business rules and "what to do" decisions → domain or application.
