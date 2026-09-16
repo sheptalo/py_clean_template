@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "InterfaceSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "implementation": {
+          "title": "Implementation",
+          "type": "string"
+        },
+        "scope": {
+          "default": "request",
+          "enum": [
+            "request",
+            "app"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "methods": {
+          "additionalProperties": {
+            "$ref": "#/$defs/MethodSpec"
+          },
+          "title": "Methods",
+          "type": "object"
+        }
+      },
+      "required": [
+        "implementation"
+      ],
+      "title": "InterfaceSpec",
+      "type": "object"
+    },
+    "MethodSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Args",
+          "type": "object"
+        },
+        "returns": {
+          "default": "none",
+          "title": "Returns",
+          "type": "string"
+        }
+      },
+      "title": "MethodSpec",
+      "type": "object"
+    },
+    "UseCaseDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Input",
+          "type": "object"
+        },
+        "output": {
+          "default": "none",
+          "title": "Output",
+          "type": "string"
+        }
+      },
+      "title": "UseCaseDefinition",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "dtos": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "title": "Dtos",
+      "type": "object"
+    },
+    "use_cases": {
+      "additionalProperties": {
+        "$ref": "#/$defs/UseCaseDefinition"
+      },
+      "title": "Use Cases",
+      "type": "object"
+    },
+    "interfaces": {
+      "additionalProperties": {
+        "$ref": "#/$defs/InterfaceSpec"
+      },
+      "title": "Interfaces",
+      "type": "object"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "ApplicationSpec",
+  "type": "object"
+}

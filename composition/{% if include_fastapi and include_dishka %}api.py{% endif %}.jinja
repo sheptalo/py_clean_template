@@ -11,6 +11,9 @@ from composition.bootstrap.container import make_container
 from composition.bootstrap.ports import PortProvider
 from {{ project_name }}.presentation import fastapi as fastapi_presentation
 {%- endif %}
+{%- if include_codegen %}
+from {{ project_name }}.presentation.fastapi.generated import exception_handlers, routers
+{%- endif %}
 
 
 @asynccontextmanager
@@ -20,7 +23,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+{%- if include_codegen %}
+    app = FastAPI(title="{{ project_name }}", lifespan=lifespan, exception_handlers=exception_handlers)
+    for router in routers:
+        app.include_router(router)
+{%- else %}
     app = FastAPI(title="{{ project_name }}", lifespan=lifespan)
+{%- endif %}
 {%- if auto_wire_ports %}
     setup_dishka(make_container(FastapiProvider(), PortProvider(fastapi_presentation)), app)
 {%- else %}

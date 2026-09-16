@@ -1,5 +1,5 @@
 {% if auto_wire_use_cases -%}
-from typing import get_origin
+from typing import cast, get_origin
 
 from dishka import Provider, Scope
 
@@ -35,7 +35,8 @@ class UseCaseProvider(Provider):
     def __init__(self) -> None:
         super().__init__()
         registered: dict[type, type] = {}
-        for use_case in get_children(IUseCase):
+        implementations: list[type] = get_children(cast(type, IUseCase))
+        for use_case in implementations:
             key = orig_bases(use_case)
             if key in registered:
                 raise DuplicateUseCaseError(key, registered[key], use_case)

@@ -18,6 +18,9 @@ use_cases/ — one class per scenario.
 interfaces/ — ports: subclass IPort, the name starts with I (for example,
 IItemRepository(IPort)), methods are marked @abstractmethod.
 - An implementation subclasses the port.
+- A port declares the lifetime of its implementations: scope = "request"
+  (default) or "app". An implementation may override it; the choice says
+  nothing about the DI library.
 - A port lives here even if a domain service needs it: the domain does
   not import ports.
 - A port that reads the call context (current user, headers, environment)

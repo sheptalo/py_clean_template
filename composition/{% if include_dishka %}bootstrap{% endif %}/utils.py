@@ -3,8 +3,8 @@ import pkgutil
 from types import ModuleType
 
 
-def get_children(cls: type) -> list[type]:
-    children: list[type] = []
+def get_children[T](cls: type[T]) -> list[type[T]]:
+    children: list[type[T]] = []
     for klass in cls.__subclasses__():
         children.append(klass)
         children.extend(get_children(klass))

@@ -37,3 +37,24 @@ docstring в `__init__.py` слоя:
 
 В Claude Code это проверяет хук `.claude/hooks/arc_ignore.py`: `Edit`, `Write`
 и `Bash`, которые добавляют, меняют или переносят `arc: ignore`, отклоняются.
+
+## Сгенерированный код
+
+Если в проекте есть `tools/codegen`, генератор собирает из YAML:
+
+- `<главный пакет>/presentation/fastapi/generated/` — из `.../presentation/fastapi/spec/`;
+- `<главный пакет>/application/dto/<файл>.py` и `<главный пакет>/application/interfaces/<файл>.py`
+  с заголовком «Generated» — из `.../application/spec/`.
+
+Эти файлы править руками нельзя: изменения затрёт следующая генерация. Меняй
+спецификацию и запускай `python -m tools.codegen`, проверка — `python -m tools.codegen --check`.
+
+Заготовки use case'ов в `<главный пакет>/application/use_cases/<файл>.py` и реализаций портов
+в `<главный пакет>/infrastructure/<файл>.py` генератор дописывает: класса из спецификации там
+нет — добавит, класс уже написан — не тронет. Бизнес-логику и работу с внешними системами
+дописывают руками.
+
+Язык спецификаций описан в README рядом с ними (`.../application/spec/README.md`,
+`.../presentation/fastapi/spec/README.md`), структуру проверяет `spec.schema.json` в тех же
+папках — первую строку спецификации с `# yaml-language-server: $schema=./spec.schema.json`
+не удаляй.

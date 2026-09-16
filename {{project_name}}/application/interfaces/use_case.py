@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import dataclass_transform
 
 
 class IUseCase[Input, Output](ABC):
@@ -7,4 +8,6 @@ class IUseCase[Input, Output](ABC):
     async def __call__(self, data: Input) -> Output: ...
 
 
-use_case = dataclass(frozen=True, eq=False, slots=True)
+@dataclass_transform(frozen_default=True, eq_default=False)
+def use_case[T](cls: type[T]) -> type[T]:
+    return dataclass(frozen=True, eq=False, slots=True)(cls)

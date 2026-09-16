@@ -10,6 +10,8 @@ from composition.bootstrap.utils import get_children, load_packages
 from {{ project_name }} import infrastructure
 from {{ project_name }}.application.interfaces.port import IPort
 
+SCOPES = {"request": Scope.REQUEST, "app": Scope.APP}
+
 
 def ports_of(cls: type) -> list[type]:
     return [base for base in cls.__mro__[1:] if issubclass(base, IPort) and inspect.isabstract(base)]
@@ -32,7 +34,7 @@ class PortProvider(Provider):
         for cls in get_children(IPort):
             ports = [port for port in ports_of(cls) if port not in declared]
             if cls.__module__.startswith(prefixes) and ports and not inspect.isabstract(cls):
-                self.provide(cls, scope=Scope.REQUEST, provides=AnyOf[*ports])
+                self.provide(cls, scope=SCOPES[cls.scope], provides=AnyOf[*ports])
         for settings in get_children(BaseSettings):
             if settings.__module__.startswith(prefixes) and settings not in declared:
                 self.provide(settings_factory(settings), scope=Scope.APP, provides=settings)

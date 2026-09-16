@@ -22,11 +22,17 @@ auto_wire_ports:
     when: "{{ include_dishka }}"
     help: Register port implementations and their settings in DI automatically?
 
+include_codegen:
+    type: bool
+    default: false
+    when: "{{ include_fastapi and include_dishka }}"
+    help: Do you wanna generate the FastAPI presentation layer from a YAML spec?
+
 _tasks:
   - "uv sync"
 
 _exclude:
-  - "README.md"
+  - "/README.md"
   - ".git"
   - "copier.yaml"
   - "copier.yml"

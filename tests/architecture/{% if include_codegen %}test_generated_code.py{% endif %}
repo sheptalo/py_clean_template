@@ -1,0 +1,7 @@
+from tools.codegen.render import generate, outdated
+
+
+def test_generated_code_matches_spec() -> None:
+    stale = outdated(generate())
+
+    assert not stale, f"Generated code is out of date, run `python -m tools.codegen`: {stale}"
