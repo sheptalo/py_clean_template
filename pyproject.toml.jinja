@@ -26,6 +26,7 @@ module-root = ""
 
 [dependency-groups]
 dev = [
+    "anyio>=4.15.1",
     "mypy>=2.3.1",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
@@ -124,7 +125,7 @@ ignore = []
 fixable = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
+"tests/**" = ["S101", "PLR2004"]
 {% if include_codegen %}"tools/**" = ["ANN401", "TRY003"]
 "tools/codegen/__main__.py" = ["ANN401", "T201", "TRY003"]
 {% endif %}".claude/**" = ["INP001"]
@@ -164,6 +165,9 @@ layers = [
     "{{ project_name }}.application",
     "{{ project_name }}.domain",
 ]
+
+[tool.pytest.ini_options]
+markers = ["integration: needs real external services; run in CI or by hand, not by pre-commit"]
 
 [tool.coverage.run]
 source = ["{{ project_name }}"]

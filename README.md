@@ -52,8 +52,9 @@ composition/                                  # Composition Root — outside {{p
     └── utils.py                                 # package traversal / subclass lookup for auto-wiring
 
 tools/codegen/       # generator of the presentation layer (with include_codegen)
-tests/               # tests
-└── architecture/    # architecture checks (naming, base classes, @dto, snake_case, generated code)
+tests/               # tests; __init__.py — how they are written; the layout mirrors the package
+├── fakes/           # in-memory fakes of ports for application tests
+└── architecture/    # architecture checks (naming, base classes, @dto, snake_case, tests, generated code)
 copier.yaml          # template variables: project_name, include_fastapi, include_dishka,
                      # auto_wire_use_cases, auto_wire_ports, include_codegen
 pyproject.toml.jinja  # dependencies + import-linter layer contract
@@ -86,6 +87,16 @@ class ExcelItemExporter(IItemExporter):
 ```
 
 The rules for which code belongs to which layer are written in the docstring of each layer's `__init__.py` and of `composition/__init__.py`. `AGENTS.md` requires AI agents to read them before making changes, and in Claude Code this is enforced by the `.claude/hooks/layer_conventions.py` hook: an edit to a layer file is rejected until that layer's `__init__.py` has been read in the current session.
+
+The rules for tests are the docstring of `tests/__init__.py`, and the same hook requires reading it before a file in `tests/` is changed. In short: a test states a behaviour and asserts a concrete value; `tests/domain` tests plain objects without mocks or async; `tests/application` runs a use case against fakes of its ports from `tests/fakes` (in-memory subclasses of the port, never `Mock`) and checks the result and the state of the fakes; `tests/infrastructure` checks the contract of a port on the real technology; `tests/presentation` checks the HTTP mapping. Async tests use `@pytest.mark.anyio`. A failing test is never weakened, skipped or deleted to make the suite pass — `AGENTS.md` forbids that to AI agents. The mechanical part is checked in `tests/architecture`: no mocks in domain and application tests, no async in domain tests, no test that only asserts `is not None`, `len(...) > 0` or `isinstance`, and no imports of generated routers. With `include_codegen` the generator also adds a `Fake<Port>` skeleton to `tests/fakes/<file>.py` for every port of the application specification.
+
+Pre-commit runs the architecture and unit tests: `pytest -m "not integration"`. Everything in `tests/infrastructure` is marked `integration` by `tests/conftest.py`; these tests need the real services and run in CI, or by hand once the services are up. Coverage is a report, not a gate: it is not part of pre-commit and has no threshold.
+
+```bash
+uv run pytest -m "not integration"   # what pre-commit runs
+uv run pytest -m integration         # with the services up
+uv run pytest --cov                  # everything, with the coverage report
+```
 
 Checks in `tests/architecture` (run by `pytest tests/architecture` and pre-commit) can be disabled selectively with a `# arc: ignore[<rule>]` comment on the violating line: the `class` line for classes, the assignment line for variables, the first line of the file for the file name. Several rules can be listed separated by commas; a comment without a rule name has no effect. Rules: `interfaces-naming`, `use-case-base-class`, `dto-decorator`, `snake-case-file`, `snake-case-variable`, `use-case-decorator` (the `RULE` constant in each test). A new check uses `is_ignored(path, line, RULE)` from `tests/architecture/_project.py`. `AGENTS.md` forbids AI agents from adding `arc: ignore`, and in Claude Code this is enforced by the `.claude/hooks/arc_ignore.py` hook.
 

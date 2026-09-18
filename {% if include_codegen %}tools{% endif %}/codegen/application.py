@@ -150,9 +150,9 @@ class ApplicationRenderer:
         self.add_import(f"{self.package}.application.interfaces.use_case", "use_case")
         return Skeleton(imports_block(self.imports), "\n\n".join(blocks))
 
-    def implementation_code(self, name: str, interface: InterfaceSpec) -> str:
+    def subclass_code(self, name: str, subclass: str, interface: InterfaceSpec) -> str:
         self.add_import(f"{self.package}.application.interfaces.{self.module}", name)
-        lines = [f"class {interface.implementation}({name}):"]
+        lines = [f"class {subclass}({name}):"]
         if not interface.methods:
             lines.append("    pass")
         for method, definition in interface.methods.items():
@@ -160,13 +160,22 @@ class ApplicationRenderer:
             lines += [f"    {signature}:", "        raise NotImplementedError", ""]
         return "\n".join(lines).rstrip()
 
-    def render_implementations(self, written: set[str]) -> Skeleton | None:
+    def render_subclasses(self, subclasses: dict[str, str], written: set[str]) -> Skeleton | None:
         self.imports = {}
         blocks = [
-            self.implementation_code(name, interface)
-            for name, interface in self.spec.interfaces.items()
-            if interface.implementation not in written
+            self.subclass_code(name, subclass, self.spec.interfaces[name])
+            for name, subclass in subclasses.items()
+            if subclass not in written
         ]
         if not blocks:
             return None
         return Skeleton(imports_block(self.imports), "\n\n".join(blocks))
+
+    def render_implementations(self, written: set[str]) -> Skeleton | None:
+        return self.render_subclasses(
+            {name: interface.implementation for name, interface in self.spec.interfaces.items()}, written
+        )
+
+    def render_fakes(self, written: set[str]) -> Skeleton | None:
+        """Fakes for application tests: IItemRepository -> FakeItemRepository."""
+        return self.render_subclasses({name: f"Fake{name.removeprefix('I')}" for name in self.spec.interfaces}, written)

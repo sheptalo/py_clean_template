@@ -42,9 +42,9 @@ repos:
         pass_filenames: false
         always_run: true
 
-      - id: architecture-tests
-        name: architecture tests
-        entry: .venv/bin/pytest tests/architecture
+      - id: tests
+        name: architecture and unit tests
+        entry: .venv/bin/pytest -m "not integration"
         language: system
         pass_filenames: false
         always_run: true

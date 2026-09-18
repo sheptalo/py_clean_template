@@ -576,6 +576,7 @@ def skeletons() -> dict[Path, str]:
         targets = (
             (use_case_dir(package) / f"{path.stem}.py", renderer.render_use_cases),
             (infrastructure_dir(package) / f"{path.stem}.py", renderer.render_implementations),
+            (REPO_ROOT / "tests" / "fakes" / f"{path.stem}.py", renderer.render_fakes),
         )
         for target, render in targets:
             body = parse_body(target)

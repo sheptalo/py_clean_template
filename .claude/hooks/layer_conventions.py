@@ -16,6 +16,8 @@ def _layer_init(file_path: Path, root: Path) -> Path | None:
     match parts:
         case ("composition", _, *_):
             init = root / "composition" / "__init__.py"
+        case ("tests", _, *_):
+            init = root / "tests" / "__init__.py"
         case (package, layer, _, *_) if layer in LAYERS:
             if not all((root / package / name).is_dir() for name in LAYERS):
                 return None

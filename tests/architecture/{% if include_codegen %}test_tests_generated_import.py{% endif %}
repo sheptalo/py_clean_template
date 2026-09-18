@@ -1,0 +1,21 @@
+from tests.architecture._project import REPO_ROOT, find_package_dir, is_ignored
+from tests.architecture._tests import files_in, iter_imports
+
+RULE = "tests-generated-import"
+
+
+def test_tests_do_not_import_generated_code() -> None:
+    generated = f"{find_package_dir().name}.presentation.fastapi.generated"
+    paths = files_in("domain", "application", "infrastructure", "presentation", "fakes")
+
+    violations = sorted(
+        {
+            f"{path.relative_to(REPO_ROOT)}:{node.lineno}"
+            for path, node, module in iter_imports(paths)
+            if (module == generated or module.startswith(f"{generated}.")) and not is_ignored(path, node.lineno, RULE)
+        }
+    )
+
+    assert not violations, (
+        f"Generated routers are covered by their specification; test the application instead: {violations}"
+    )
