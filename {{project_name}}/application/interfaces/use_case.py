@@ -10,4 +10,4 @@ class IUseCase[Input, Output](ABC):
 
 @dataclass_transform(frozen_default=True, eq_default=False)
 def use_case[T](cls: type[T]) -> type[T]:
-    return dataclass(frozen=True, eq=False, slots=True)(cls)
+    return dataclass(frozen=True, eq=False)(cls)

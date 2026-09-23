@@ -1,7 +1,9 @@
 """Spec types: parsing, rendering as annotations and matching against DTOs."""
 
+import ast
 import dataclasses
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -25,6 +27,7 @@ SCALARS: dict[str, tuple[type, str, tuple[str, str] | None]] = {
 SCALAR_BY_TYPE: dict[type, str] = {hint: name for name, (hint, _, _) in SCALARS.items()}
 
 _LIST = re.compile(r"^list\[(?P<item>.+)\]$")
+_KEYWORDS = {"true": True, "false": False, "null": None, "none": None}
 
 
 class SpecTypeError(ValueError):
@@ -36,14 +39,29 @@ class SpecType:
     name: str
     many: bool = False
     optional: bool = False
+    default: str | None = None
 
     @property
     def is_scalar(self) -> bool:
         return self.name in SCALARS
 
 
+def parse_default(text: str) -> str:
+    """The Python source of a default value: a literal, or true, false, null."""
+    source = text.strip()
+    if source.lower() in _KEYWORDS:
+        return repr(_KEYWORDS[source.lower()])
+    try:
+        return repr(ast.literal_eval(source))
+    except (ValueError, SyntaxError) as error:
+        raise SpecTypeError(f"a default value must be a literal, got {source!r}") from error
+
+
 def parse_type(text: str) -> SpecType:
-    value = text.strip()
+    """Parse `type`, `type?`, `list[type]` with an optional `= default`; `= default` alone keeps the type open."""
+    value, has_default, default_text = text.partition("=")
+    default = parse_default(default_text) if has_default else None
+    value = value.strip()
     optional = value.endswith("?")
     if optional:
         value = value[:-1].strip()
@@ -52,8 +70,8 @@ def parse_type(text: str) -> SpecType:
         item = match.group("item").strip()
         if _LIST.match(item) or item.endswith("?"):
             raise SpecTypeError(f"nested list or optional item is not supported: {text}")
-        return SpecType(name=item, many=True, optional=optional)
-    return SpecType(name=value, optional=optional)
+        return SpecType(name=item, many=True, optional=optional, default=default)
+    return SpecType(name=value, optional=optional, default=default)
 
 
 def annotation(spec_type: SpecType) -> str:
@@ -84,6 +102,7 @@ def matches(
     spec_type: SpecType,
     hint: Any,
     schemas: dict[str, dict[str, str]],
+    enums: Mapping[str, type],
 ) -> bool:
     """Check that a spec type describes the same data as a DTO annotation."""
     hint, hint_optional = strip_optional(hint)
@@ -95,18 +114,25 @@ def matches(
         (hint,) = get_args(hint) or (None,)
     if spec_type.is_scalar:
         return hint is SCALARS[spec_type.name][0]
-    if spec_type.name not in schemas or not dataclasses.is_dataclass(hint):
-        return False
-    return schema_matches(schemas[spec_type.name], hint, schemas)
+    if spec_type.name in enums:
+        return hint is enums[spec_type.name]
+    return (
+        spec_type.name in schemas
+        and dataclasses.is_dataclass(hint)
+        and schema_matches(schemas[spec_type.name], hint, schemas, enums)
+    )
 
 
 def schema_matches(
     fields: dict[str, str],
     dto: Any,
     schemas: dict[str, dict[str, str]],
+    enums: Mapping[str, type],
 ) -> bool:
     hints = get_type_hints(dto)
-    return all(name in hints and matches(parse_type(text), hints[name], schemas) for name, text in fields.items())
+    return all(
+        name in hints and matches(parse_type(text), hints[name], schemas, enums) for name, text in fields.items()
+    )
 
 
 def field_hint(dto: Any, name: str) -> Any:

@@ -3,6 +3,18 @@
     "InterfaceSpec": {
       "additionalProperties": false,
       "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doc"
+        },
         "implementation": {
           "title": "Implementation",
           "type": "string"
@@ -33,6 +45,18 @@
     "MethodSpec": {
       "additionalProperties": false,
       "properties": {
+        "doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doc"
+        },
         "args": {
           "additionalProperties": {
             "type": "string"
@@ -63,6 +87,13 @@
           "default": "none",
           "title": "Output",
           "type": "string"
+        },
+        "ports": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Ports",
+          "type": "object"
         }
       },
       "title": "UseCaseDefinition",
@@ -75,6 +106,16 @@
       "const": 1,
       "title": "Version",
       "type": "integer"
+    },
+    "enums": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": "Enums",
+      "type": "object"
     },
     "dtos": {
       "additionalProperties": {

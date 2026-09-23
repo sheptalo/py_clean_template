@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
+from dishka import Provider
 from dishka.integrations.fastapi import FastapiProvider, setup_dishka
 from fastapi import FastAPI
 
@@ -22,7 +23,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await app.state.dishka_container.close()
 
 
-def create_app() -> FastAPI:
+def create_app(*providers: Provider) -> FastAPI:
+    """providers go last, so they replace any registration of the same type (tests pass fakes this way)."""
 {%- if include_codegen %}
     app = FastAPI(title="{{ project_name }}", lifespan=lifespan, exception_handlers=exception_handlers)
     for router in routers:
@@ -31,9 +33,9 @@ def create_app() -> FastAPI:
     app = FastAPI(title="{{ project_name }}", lifespan=lifespan)
 {%- endif %}
 {%- if auto_wire_ports %}
-    setup_dishka(make_container(FastapiProvider(), PortProvider(fastapi_presentation)), app)
+    setup_dishka(make_container(FastapiProvider(), PortProvider(fastapi_presentation), *providers), app)
 {%- else %}
-    setup_dishka(make_container(FastapiProvider()), app)
+    setup_dishka(make_container(FastapiProvider(), *providers), app)
 {%- endif %}
     return app
 

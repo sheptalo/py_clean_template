@@ -1,25 +1,27 @@
 import ast
 import re
+import tomllib
 from collections.abc import Iterator
 from functools import cache
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-_LAYERS = ("domain", "application", "infrastructure", "presentation")
 _ARC_IGNORE = re.compile(r"#\s*arc:\s*ignore\[([^\]]+)\]")
 
 
 class PackageNotFoundError(RuntimeError):
     def __init__(self, root: Path) -> None:
-        super().__init__(f"No package under {root} containing {_LAYERS}")
+        super().__init__(f"{root / 'pyproject.toml'} names no root_package in [tool.importlinter]")
 
 
 def find_package_dir() -> Path:
-    for child in sorted(REPO_ROOT.iterdir()):
-        if child.is_dir() and all((child / layer).is_dir() for layer in _LAYERS):
-            return child
-    raise PackageNotFoundError(REPO_ROOT)
+    """The layered package, as import-linter knows it: tests/ mirrors its layers, so a directory scan is ambiguous."""
+    with (REPO_ROOT / "pyproject.toml").open("rb") as file:
+        package = tomllib.load(file).get("tool", {}).get("importlinter", {}).get("root_package")
+    if not isinstance(package, str):
+        raise PackageNotFoundError(REPO_ROOT)
+    return REPO_ROOT / package
 
 
 def iter_python_files(root: Path) -> list[Path]:

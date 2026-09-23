@@ -17,15 +17,18 @@ tags: [items]
 schemas:                                 # wire types: the request body, and a response that
   CreateItemRequest:                     # has to differ from the Output DTO
     name: str
-    quantity: int
+    quantity: int = 1                    # a default value makes the field optional
+    note: str?                           # ? is optional too, with None as the default
+    state: item.ItemState                # an enum of a DTO module
   RenameItemRequest:
     title: str
   ItemBrief:
     id: uuid
     name: str
 
-errors:                                  # exception class relative to the package -> status
-  domain.exceptions.ItemNotFoundError: 404
+errors:                                  # exception class relative to the package -> status;
+  domain.exceptions.ItemNotFoundError: 404   # the handlers of all files serve every endpoint
+  domain.exceptions.InvalidItemNameError: 422
 
 endpoints:
   create_item:                           # the name of the generated handler
@@ -39,8 +42,20 @@ endpoints:
       output: item.ItemOutput
     request:
       body: CreateItemRequest            # a schema of this file
-    # input is not needed: name and quantity come from the body fields of the same name,
+    errors:                              # documented in OpenAPI with the status from errors
+      - domain.exceptions.InvalidItemNameError
+    # input is not needed: every Input field comes from the body field of the same name,
     # response is not needed: the schema is built from item.ItemOutput
+
+  list_items:
+    method: GET
+    use_case:
+      input: item.ListItemsInput
+      output: list[item.ItemOutput]
+    request:
+      query:
+        state:                           # the type comes from the Input field it feeds
+        limit: = 20                      # ...and so does this one, with a default value
 
   get_item:
     method: GET
@@ -48,6 +63,8 @@ endpoints:
     use_case:                            # their type from the Input field they feed
       input: item.GetItemInput
       output: item.ItemOutput
+    errors:
+      - domain.exceptions.ItemNotFoundError
 
   rename_item:
     method: PATCH

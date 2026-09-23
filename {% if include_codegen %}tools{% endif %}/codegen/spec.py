@@ -53,6 +53,7 @@ class EndpointSpec(Model):
     request: RequestSpec = Field(default_factory=RequestSpec)
     input: dict[str, str] = Field(default_factory=dict)
     response: str | ResponseSpec | None = None
+    errors: list[str] = Field(default_factory=list)
 
 
 class RouterSpec(Model):
@@ -67,14 +68,17 @@ class RouterSpec(Model):
 class UseCaseDefinition(Model):
     input: dict[str, str] = Field(default_factory=dict)
     output: str = "none"
+    ports: dict[str, str] = Field(default_factory=dict)
 
 
 class MethodSpec(Model):
+    doc: str | None = None
     args: dict[str, str] = Field(default_factory=dict)
     returns: str = "none"
 
 
 class InterfaceSpec(Model):
+    doc: str | None = None
     implementation: str
     scope: Literal["request", "app"] = "request"
     methods: dict[str, MethodSpec] = Field(default_factory=dict)
@@ -82,6 +86,7 @@ class InterfaceSpec(Model):
 
 class ApplicationSpec(Model):
     version: Literal[1]
+    enums: dict[str, list[str]] = Field(default_factory=dict)
     dtos: dict[str, dict[str, str]] = Field(default_factory=dict)
     use_cases: dict[str, UseCaseDefinition] = Field(default_factory=dict)
     interfaces: dict[str, InterfaceSpec] = Field(default_factory=dict)

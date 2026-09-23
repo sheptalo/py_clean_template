@@ -1,0 +1,36 @@
+import gc
+
+import pytest
+
+from composition.bootstrap.container import make_container
+from {{ project_name }}.application.interfaces.dto import dto
+from {{ project_name }}.application.interfaces.use_case import IUseCase, use_case
+
+
+@dto
+class PingInput:
+    pass
+
+
+@dto
+class PingOutput:
+    pass
+
+
+@pytest.mark.anyio
+async def test_container_provides_use_case_declared_since_last_garbage_collection() -> None:
+    gc.disable()
+    try:
+
+        @use_case
+        class PingUseCase(IUseCase[PingInput, PingOutput]):
+            async def __call__(self, _data: PingInput) -> PingOutput:
+                return PingOutput()
+
+        container = make_container()
+    finally:
+        gc.enable()
+
+    async with container() as request:
+        assert type(await request.get(IUseCase[PingInput, PingOutput])) is PingUseCase
+    await container.close()

@@ -32,7 +32,8 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.16.6",
     "import-linter>=2.15",
-{% if include_codegen %}    "pyyaml>=6.0.3",
+{% if include_fastapi %}    "httpx2>=2.13.0",
+{% endif %}{% if include_codegen %}    "pyyaml>=6.0.3",
     "types-pyyaml>=6.0.12",
 {% endif %}]
 

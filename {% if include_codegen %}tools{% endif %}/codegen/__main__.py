@@ -9,6 +9,7 @@ from argparse import ArgumentParser
 
 from tools.codegen.render import REPO_ROOT, generate, outdated, write
 from tools.codegen.spec import SpecError
+from tools.codegen.types import SpecTypeError
 
 
 def main() -> int:
@@ -18,10 +19,10 @@ def main() -> int:
 
     try:
         files = generate()
-    except SpecError as error:
+        changed = outdated(files) if arguments.check else write(files)
+    except (SpecError, SpecTypeError) as error:
         print(error)
         return 2
-    changed = outdated(files) if arguments.check else write(files)
     for path in changed:
         print(path.relative_to(REPO_ROOT))
     if arguments.check and changed:

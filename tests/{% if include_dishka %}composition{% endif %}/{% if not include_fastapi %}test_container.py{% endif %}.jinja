@@ -1,0 +1,9 @@
+import pytest
+
+from composition.bootstrap.container import make_container
+
+
+@pytest.mark.anyio
+async def test_container_builds() -> None:
+    container = make_container()
+    await container.close()

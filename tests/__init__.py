@@ -1,8 +1,9 @@
 """Tests — how they are written, whoever writes them.
 
 The layout mirrors the package: tests/domain, tests/application,
-tests/infrastructure, tests/presentation. tests/architecture checks the
-structure of the code, tests/fakes holds fakes of ports.
+tests/infrastructure, tests/presentation, tests/composition.
+tests/architecture checks the structure of the code, tests/fakes holds
+fakes of ports.
 
 A test states behaviour.
 - The name is a claim about it: test_create_item_rejects_negative_quantity,
@@ -41,10 +42,19 @@ written is read back, a missing record gives the answer the port promises.
 presentation — the mapping: status codes, the shape of the response,
 authentication, an error turned into a status, no extra fields leaving
 the service.
-- The use case is replaced through DI.
+- The use case is replaced through DI: tests.presentation.client gives
+  app_client(override(IUseCase[Input, Output], fake)).
+- A fake use case is a plain class with async __call__, not a subclass of
+  IUseCase: auto-wiring registers every subclass and would see two use
+  cases with one key.
 - Generated routers are covered by their specification. Test only what the
   specification does not describe, through the application, without
   importing the generated modules.
+
+composition — the application is assembled: the container builds and the
+app starts. These tests catch wiring errors (a port without an
+implementation, two use cases with one key) that every other test, built
+from fakes, never sees.
 
 Everywhere:
 - Async tests are marked @pytest.mark.anyio.
