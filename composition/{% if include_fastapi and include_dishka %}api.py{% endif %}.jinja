@@ -10,10 +10,12 @@ from fastapi import FastAPI
 from composition.bootstrap.container import make_container
 {%- if auto_wire_ports %}
 from composition.bootstrap.ports import PortProvider
+
 from {{ project_name }}.presentation import fastapi as fastapi_presentation
 {%- endif %}
 {%- if include_codegen %}
-from {{ project_name }}.presentation.fastapi.generated import exception_handlers, routers
+{% if not auto_wire_ports %}
+{% endif %}from {{ project_name }}.presentation.fastapi.generated import exception_handlers, routers
 {%- endif %}
 
 

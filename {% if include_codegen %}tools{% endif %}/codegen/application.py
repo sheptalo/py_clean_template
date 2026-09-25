@@ -61,9 +61,13 @@ class ApplicationRenderer:
 
     def spec_type(self, text: str, where: str) -> SpecType:
         spec_type = self.parse(text, where)
+        if "." in spec_type.name:
+            value = import_object(self.path, f"{self.package}.{spec_type.name}")
+            self.add_import(value.__module__, value.__name__)
+            return SpecType(value.__name__, spec_type.many, spec_type.optional)
         if not spec_type.is_scalar and spec_type.name not in (*self.spec.dtos, *self.spec.enums):
             known = ", ".join([*SCALARS, *self.spec.enums, *self.spec.dtos])
-            raise self.fail(f"{where}: unknown type {text!r}, expected one of {known}")
+            raise self.fail(f"{where}: unknown type {text!r}, expected one of {known} or a dotted path")
         for module, symbol in imports(spec_type):
             self.add_import(module, symbol)
         return spec_type
@@ -221,10 +225,17 @@ class ApplicationRenderer:
             return None
         return Skeleton(imports_block(self.imports), "\n\n".join(blocks))
 
-    def render_implementations(self, written: set[str]) -> Skeleton | None:
-        return self.render_subclasses(
-            {name: interface.implementation for name, interface in self.spec.interfaces.items()}, written
-        )
+    def implementation_modules(self) -> dict[str, dict[str, str]]:
+        """Module of the implementations, relative to the package -> {port: class}.
+
+        A bare class name lands in infrastructure/<file>.py; a dotted implementation names its own
+        module, which is how a port implemented for one entrypoint stays in that entrypoint's package.
+        """
+        modules: dict[str, dict[str, str]] = {}
+        for name, interface in self.spec.interfaces.items():
+            module, _, subclass = interface.implementation.rpartition(".")
+            modules.setdefault(module or f"infrastructure.{self.module}", {})[name] = subclass
+        return modules
 
     def render_fakes(self, written: set[str]) -> Skeleton | None:
         """Fakes for application tests: IItemRepository -> FakeItemRepository."""

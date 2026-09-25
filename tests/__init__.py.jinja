@@ -29,28 +29,43 @@ of the ports after the call, branches on domain errors, the permission check.
 - Ports are replaced by fakes from tests/fakes: an in-memory subclass of
   the port, not a Mock. Assert the result and the state of the fake, never
   which methods were called and with what.
+- A fake of a store keeps copies, and returns copies, as long as what it
+  keeps is mutable: handing out the very object it stores lets a use case
+  that mutates an entity and forgets to save it pass, because the stored
+  object changed with it. Frozen entities need no copying.
 - Domain rules are not tested again here.
 
 infrastructure — the contract of a port on the real technology: what was
 written is read back, a missing record gives the answer the port promises.
 - No business scenarios.
-- These are integration tests: conftest.py marks everything in
-  tests/infrastructure as integration. Pre-commit runs pytest -m "not
-  integration"; integration tests run in CI, or by hand with the services
-  up. Every other test runs without external services.
+- The implementation is built with its settings directly
+  (JsonStore(JsonSettings(path=tmp_path / "store.json"))): the container is
+  not involved and no environment variable is set.
+- conftest.py marks everything in tests/infrastructure as integration, an
+  in-memory adapter included. Pre-commit runs pytest -m "not integration",
+  so these tests run in CI or by hand (pytest, or pytest -m integration),
+  with the services up. Every other test runs without external services.
 
 presentation — the mapping: status codes, the shape of the response,
 authentication, an error turned into a status, no extra fields leaving
 the service.
-- The use case is replaced through DI: tests.presentation.client gives
+{% if include_fastapi and include_dishka %}- The use case is replaced through DI: tests.presentation.client gives
   app_client(override(IUseCase[Input, Output], fake)).
-- A fake use case is a plain class with async __call__, not a subclass of
+{% else %}- The adapter is called directly with the use case it needs; the entrypoint
+  that resolves it from the container is covered in tests/composition.
+{% endif %}- A fake use case is a plain class with async __call__, not a subclass of
   IUseCase: auto-wiring registers every subclass and would see two use
-  cases with one key.
-- Generated routers are covered by their specification. Test only what the
-  specification does not describe, through the application, without
-  importing the generated modules.
-
+  cases with one key. A fake of a port does subclass its port — auto-wiring
+  takes implementations from the package only, never from tests.
+{% if include_codegen %}- A generated router needs no test per endpoint: the specification states
+  the mapping and its own check guards it. What is tested here is what the
+  specification does not state — a handwritten adapter of this layer, and
+  behaviour that only appears over HTTP, such as an error of a use case
+  becoming a status. Never import the generated modules; go through
+  app_client.
+{% else %}- Every endpoint of a handwritten router gets a test here: the status, the
+  body, and the error it turns into a status.
+{% endif %}
 composition — the application is assembled: the container builds and the
 app starts. These tests catch wiring errors (a port without an
 implementation, two use cases with one key) that every other test, built

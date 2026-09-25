@@ -1,5 +1,19 @@
 # Правила для AI-агентов
 
+## Команды
+
+```bash
+{% if include_fastapi %}uv run api --reload                  # HTTP-вход, работают все флаги uvicorn
+{% endif %}uv run pytest -m "not integration"   # то, что гоняет pre-commit
+uv run pytest                        # всё, включая тесты, которым нужны живые сервисы
+uv run pytest --cov                  # с отчётом о покрытии
+uv run ruff check . && uv run ruff format --check .
+uv run mypy .
+uv run lint-imports                  # контракт слоёв
+{% if include_codegen %}uv run python -m tools.codegen       # DTO, порты и FastAPI-слой из YAML-спек
+uv run python -m tools.codegen --check
+{% endif %}```
+
 ## Перед началом работы
 
 Перед началом любой работы с кодом (написание, ревью, рефакторинг) используй скилл `/karpathy-guidelines` —
@@ -20,9 +34,9 @@ docstring в `__init__.py` слоя:
 Слой для нового кода выбирай по этим конвенциям. Если по ним код относится
 к другому слою, клади его туда.
 
-В Claude Code это проверяет хук `.claude/hooks/layer_conventions.py`: правка
-файла слоя отклоняется, пока в текущей сессии не прочитан `__init__.py` этого
-слоя.
+В Claude Code это проверяет хук `.claude/hooks/layer_conventions.py`: `Edit`,
+`Write` и `Bash`, которые пишут в файл слоя, отклоняются, пока в текущей сессии
+не прочитан `__init__.py` этого слоя.
 
 ## Падающий тест
 
@@ -46,7 +60,7 @@ docstring в `__init__.py` слоя:
 В Claude Code это проверяет хук `.claude/hooks/arc_ignore.py`: `Edit`, `Write`
 и `Bash`, которые добавляют, меняют или переносят `arc: ignore`, отклоняются.
 
-## Сгенерированный код
+{% if include_codegen %}## Сгенерированный код
 
 Если в проекте есть `tools/codegen`, генератор собирает из YAML:
 
@@ -58,12 +72,13 @@ docstring в `__init__.py` слоя:
 спецификацию и запускай `python -m tools.codegen`, проверка — `python -m tools.codegen --check`.
 
 Заготовки use case'ов в `<главный пакет>/application/use_cases/<файл>.py`, реализаций портов
-в `<главный пакет>/infrastructure/<файл>.py` и fake-портов в `tests/fakes/<файл>.py`
-генератор дописывает: класса из спецификации там
-нет — добавит, класс уже написан — не тронет. Бизнес-логику и работу с внешними системами
+(или в модуле из `implementation:`) и fake-портов в `tests/fakes/<файл>.py` генератор дописывает:
+класса из спецификации там нет — добавит, класс уже написан — не тронет. Поэтому порт, добавленный
+в `ports:` уже написанного use case'а, полем в классе не появится — допиши его руками. Бизнес-логику и работу с внешними системами
 дописывают руками.
 
 Язык спецификаций описан в README рядом с ними (`.../application/spec/README.md`,
 `.../presentation/fastapi/spec/README.md`), структуру проверяет `spec.schema.json` в тех же
 папках — первую строку спецификации с `# yaml-language-server: $schema=./spec.schema.json`
 не удаляй.
+{% endif %}

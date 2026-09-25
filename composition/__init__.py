@@ -16,6 +16,21 @@ Belongs here:
   registrations from its presentation subpackage, passed by the
   entrypoint to make_container().
 
+An entrypoint that no framework integrates (a CLI, a worker) does the
+wiring itself, and only it may touch the container:
+- builds it once with make_container(<its own providers>), opens a request
+  scope (async with container() as request), resolves the use case the
+  command needs and passes it to the adapter of its presentation
+  subpackage, then closes the container in a finally.
+- turns a domain error into its own transport answer: an exit code and a
+  line on stderr for a CLI, a retry or a dead letter for a consumer. A CLI
+  parses argv with argparse of the standard library and answers 2 for a
+  malformed command, 1 for a refused rule, 0 for done.
+- may write to stdout and stderr; no layer below it prints.
+- is registered in [project.scripts] as its own command, for example
+  stock = "composition.cli:main", and main() is synchronous: it runs the
+  async part itself (asyncio.run) and exits with sys.exit(code).
+
 Does not belong here:
 - Any logic other than assembling and starting: business rules → domain,
   scenarios → application, adapters → infrastructure or presentation.

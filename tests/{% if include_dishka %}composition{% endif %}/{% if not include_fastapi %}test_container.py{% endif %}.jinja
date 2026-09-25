@@ -5,5 +5,6 @@ from composition.bootstrap.container import make_container
 
 @pytest.mark.anyio
 async def test_container_builds() -> None:
+    """Building the container validates the whole graph: a port without an implementation fails here."""
     container = make_container()
     await container.close()

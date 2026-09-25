@@ -93,7 +93,10 @@ class ApplicationSpec(Model):
 
 
 def load_spec[T: Model](path: Path, model: type[T]) -> T:
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as error:
+        raise SpecError(path, f"is not valid YAML: {error}") from error
     if not isinstance(raw, dict):
         raise SpecError(path, "specification must be a mapping")
     try:

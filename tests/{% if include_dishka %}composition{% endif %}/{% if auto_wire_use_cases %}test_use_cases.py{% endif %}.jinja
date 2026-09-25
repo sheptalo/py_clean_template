@@ -2,7 +2,12 @@ import gc
 
 import pytest
 
+{% if include_fastapi -%}
+from composition.api import create_app
+{%- else -%}
 from composition.bootstrap.container import make_container
+{%- endif %}
+
 from {{ project_name }}.application.interfaces.dto import dto
 from {{ project_name }}.application.interfaces.use_case import IUseCase, use_case
 
@@ -19,6 +24,7 @@ class PingOutput:
 
 @pytest.mark.anyio
 async def test_container_provides_use_case_declared_since_last_garbage_collection() -> None:
+    """The container of the entrypoint: only it holds the ports implemented for that entrypoint."""
     gc.disable()
     try:
 
@@ -27,7 +33,9 @@ async def test_container_provides_use_case_declared_since_last_garbage_collectio
             async def __call__(self, _data: PingInput) -> PingOutput:
                 return PingOutput()
 
-        container = make_container()
+{% if include_fastapi %}        container = create_app().state.dishka_container
+{%- else %}        container = make_container()
+{%- endif %}
     finally:
         gc.enable()
 

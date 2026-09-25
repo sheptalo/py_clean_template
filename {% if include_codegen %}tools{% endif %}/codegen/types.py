@@ -22,6 +22,7 @@ SCALARS: dict[str, tuple[type, str, tuple[str, str] | None]] = {
     "datetime": (datetime, "datetime", ("datetime", "datetime")),
     "date": (date, "date", ("datetime", "date")),
     "decimal": (Decimal, "Decimal", ("decimal", "Decimal")),
+    "bytes": (bytes, "bytes", None),
 }
 
 SCALAR_BY_TYPE: dict[type, str] = {hint: name for name, (hint, _, _) in SCALARS.items()}

@@ -80,6 +80,7 @@ venv.bak/
 /site
 
 .mypy_cache/
+.import_linter_cache/
 .dmypy.json
 dmypy.json
 

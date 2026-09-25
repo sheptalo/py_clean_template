@@ -10,6 +10,7 @@ import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from enum import Enum
+from functools import partial
 from pathlib import Path
 from types import ModuleType
 from typing import Any, get_args, get_origin, get_type_hints
@@ -85,10 +86,6 @@ def use_case_dir(package: str) -> Path:
     return REPO_ROOT / package / "application" / "use_cases"
 
 
-def infrastructure_dir(package: str) -> Path:
-    return REPO_ROOT / package / "infrastructure"
-
-
 def is_generated(path: Path) -> bool:
     return path.read_text(encoding="utf-8").startswith(HEADER.split("{", 1)[0])
 
@@ -129,11 +126,15 @@ class Renderer:
 
     def reference(self, cls: type) -> str:
         """Import the module of a class and return the name the generated code refers to the class by."""
-        parent, _, alias = cls.__module__.rpartition(".")
-        known = self.modules.setdefault(alias, cls.__module__)
-        if known != cls.__module__:
-            raise self.fail(f"{cls.__module__} and {known} are both imported as {alias}, rename one of them")
-        self.add_import(parent, alias)
+        parts = cls.__module__.split(".")
+        alias = parts[-1]
+        if self.modules.setdefault(alias, cls.__module__) != cls.__module__:
+            alias = "_".join(parts[-2:])
+            if self.modules.setdefault(alias, cls.__module__) != cls.__module__:
+                raise self.fail(f"{cls.__module__} cannot be imported as {alias}, rename one of the modules")
+            self.add_import(".".join(parts[:-1]), f"{parts[-1]} as {alias}")
+            return f"{alias}.{cls.__name__}"
+        self.add_import(".".join(parts[:-1]), alias)
         return f"{alias}.{cls.__name__}"
 
     def dto(self, dotted: str) -> tuple[Any, str]:
@@ -159,9 +160,7 @@ class Renderer:
         """A type written in the specification: a scalar, a schema of this file or an enum like task.TaskStatus."""
         spec_type = self.parse(text, where)
         if "." in spec_type.name:
-            value = import_object(self.path, f"{self.package}.application.dto.{spec_type.name}")
-            if not (isinstance(value, type) and issubclass(value, Enum)):
-                raise self.fail(f"{where}: {spec_type.name} is not an enum")
+            value = self.dotted_enum(spec_type.name, where)
             self.enums[spec_type.name] = value
             return dataclasses.replace(spec_type, name=self.enum(value))
         if not spec_type.is_scalar and spec_type.name not in self.spec.schemas:
@@ -171,6 +170,18 @@ class Renderer:
                 "(optional: str?, list: list[str], default: int = 20)"
             )
         return spec_type
+
+    def dotted_enum(self, dotted: str, where: str) -> type[Enum]:
+        """An enum named by a dotted path: relative to application.dto, or to the package (domain.item.State)."""
+        for prefix in (f"{self.package}.application.dto.", f"{self.package}."):
+            try:
+                value = import_object(self.path, f"{prefix}{dotted}")
+            except SpecError:
+                continue
+            if isinstance(value, type) and issubclass(value, Enum):
+                return value
+            raise self.fail(f"{where}: {dotted} is not an enum")
+        raise self.fail(f"{where}: cannot import {dotted}, relative to application.dto or to the package")
 
     def default(self, spec_type: SpecType) -> str | None:
         """The source of the default value of a field or parameter; None when it is required."""
@@ -337,6 +348,35 @@ class Renderer:
             if not matches(spec_type, field_hint(input_dto, field), self.spec.schemas, self.enums):
                 raise self.fail(f"{name}: {source} does not match the type of {input_dto.__name__}.{field}")
 
+    def argument(self, name: str, field: str, source: str, spec_type: SpecType, hint: Any) -> str:
+        """The expression that fills an Input field: the wire value, or a schema turned into the DTO it feeds."""
+        expression = source_expression(source)
+        if spec_type.is_scalar or spec_type.name in self.enums:
+            return expression
+        inner, _ = strip_optional(hint)
+        if spec_type.many:
+            (inner,) = get_args(inner) or (None,)
+        nested = self.flat_dto(name, field, inner)
+        if spec_type.many:
+            built = f"[{nested}(**item.model_dump()) for item in {expression}]"
+        else:
+            built = f"{nested}(**{expression}.model_dump())"
+        return f"None if {expression} is None else {built}" if spec_type.optional else built
+
+    def flat_dto(self, name: str, field: str, dto: Any) -> str:
+        """A DTO built from a schema holds scalars only: the generator converts one level, not a tree."""
+        hints = get_type_hints(dto)
+        for nested in dataclasses.fields(dto):
+            inner, _ = strip_optional(hints[nested.name])
+            if get_origin(inner) is list:
+                (inner,) = get_args(inner) or (None,)
+            if inner not in SCALAR_BY_TYPE and not (isinstance(inner, type) and issubclass(inner, Enum)):
+                raise self.fail(
+                    f"{name}: {field} is filled from a schema, so {dto.__name__}.{nested.name} must be a scalar "
+                    f"or an enum; a deeper tree is not converted"
+                )
+        return self.reference(dto)
+
     def check_file(self, name: str, file: FileSpec, output_dto: Any, output_many: bool) -> None:
         if output_dto is None or output_many:
             raise self.fail(f"{name}: a file response needs a single DTO as the use case output")
@@ -464,8 +504,12 @@ class Renderer:
         if output_type.many:
             output_name = f"list[{output_name}]"
         key = f"IUseCase[{input_name}, {output_name}]"
-        arguments = ", ".join(f"{field}={source_expression(source)}" for field, source in mapping.items())
-        call = f"use_case({input_name}({arguments}))"
+        arguments = [
+            f"{field}={self.argument(name, field, source, self.source_type(name, endpoint, source, types), hint)}"
+            for field, source in mapping.items()
+            for hint in [field_hint(input_dto, field)]
+        ]
+        call = f"use_case({input_name}({', '.join(arguments)}))"
 
         file = self.file_spec(endpoint)
         if file is not None:
@@ -683,11 +727,13 @@ def skeletons() -> dict[Path, str]:
     package = find_package()
     files: dict[Path, str] = {}
     for path, renderer in application_renderers(package).items():
-        targets = (
+        targets = [
             (use_case_dir(package) / f"{path.stem}.py", renderer.render_use_cases),
-            (infrastructure_dir(package) / f"{path.stem}.py", renderer.render_implementations),
             (REPO_ROOT / "tests" / "fakes" / f"{path.stem}.py", renderer.render_fakes),
-        )
+        ]
+        for module, subclasses in renderer.implementation_modules().items():
+            target = (REPO_ROOT / package).joinpath(*module.split(".")).with_suffix(".py")
+            targets.append((target, partial(renderer.render_subclasses, subclasses)))
         for target, render in targets:
             body = parse_body(target)
             skeleton = render({node.name for node in body if isinstance(node, ast.ClassDef)})
@@ -728,6 +774,7 @@ def write(files: dict[Path, str]) -> list[Path]:
         path.write_text(text, encoding="utf-8")
     created = []
     for path, text in skeletons().items():
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(format_code(path, text), encoding="utf-8")
         created.append(path)
     return sorted(changed + created)

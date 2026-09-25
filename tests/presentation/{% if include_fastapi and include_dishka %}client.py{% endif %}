@@ -7,10 +7,14 @@ from fastapi.testclient import TestClient
 from composition.api import create_app
 
 
-def override(key: object, instance: object) -> Provider:
-    """Answer `key` with `instance` — for example IUseCase[Input, Output] with a fake use case."""
+def override(key: object, target: object) -> Provider:
+    """Answer `key` with `target`: a ready instance, or a class whose own dependencies DI injects."""
+    if isinstance(target, type):
+        provider = Provider(scope=Scope.REQUEST)
+        provider.provide(target, provides=key)
+        return provider
     provider = Provider(scope=Scope.APP)
-    provider.provide(lambda: instance, provides=key)
+    provider.provide(lambda: target, provides=key)
     return provider
 
 

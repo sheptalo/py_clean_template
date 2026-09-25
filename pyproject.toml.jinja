@@ -127,9 +127,15 @@ fixable = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004"]
+"composition/**" = ["T201"]
 {% if include_codegen %}"tools/**" = ["ANN401", "TRY003"]
 "tools/codegen/__main__.py" = ["ANN401", "T201", "TRY003"]
 {% endif %}".claude/**" = ["INP001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["{{ project_name }}"]
+sections = { composition = ["composition"] }
+section-order = ["future", "standard-library", "third-party", "composition", "first-party", "local-folder"]
 
 [tool.ruff.lint.pylint]
 max-returns = 5
