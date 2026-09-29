@@ -23,8 +23,11 @@ Belongs here:
   it themselves.
 
 DI registration: implementations, settings and client factories from
-infrastructure go into the container shared by all entrypoints; they are
-registered in composition.
+infrastructure go into the container shared by all entrypoints. When
+auto-wiring is on, composition's provider finds them by scanning this
+package — every non-abstract subclass of a port and every BaseSettings
+subclass — and a new class needs no registration line anywhere. With
+auto-wiring off, each one is registered by hand in composition.
 
 Does not belong here:
 - Business rules and "what to do" decisions → domain or application.

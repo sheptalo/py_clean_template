@@ -1,5 +1,4 @@
 import json
-import os
 import re
 import sys
 import tempfile
@@ -20,11 +19,13 @@ def _targets(tool_input: dict[str, str], cwd: str, *, writes_only: bool) -> list
     return [Path(cwd, name) for name in _PYTHON_FILE.findall(command)]
 
 
+def _root_of(file_path: Path) -> Path | None:
+    """The project the file belongs to: the nearest ancestor holding pyproject.toml."""
+    return next((parent for parent in file_path.resolve().parents if (parent / "pyproject.toml").is_file()), None)
+
+
 def _layer_init(file_path: Path, root: Path) -> Path | None:
-    try:
-        parts = file_path.resolve().relative_to(root.resolve()).parts
-    except ValueError:
-        return None
+    parts = file_path.resolve().relative_to(root).parts
 
     match parts:
         case ("composition", _, *_):
@@ -49,19 +50,22 @@ def _state_file(session_id: str) -> Path:
 
 def main() -> None:
     payload = json.load(sys.stdin)
-    root = Path(os.environ.get("CLAUDE_PROJECT_DIR", payload["cwd"]))
     post = payload["hook_event_name"] == "PostToolUse"
     targets = _targets(payload["tool_input"], payload["cwd"], writes_only=not post)
-    found = [(path, init) for path in targets if (init := _layer_init(path, root)) is not None]
+    found = [
+        (path, root, init)
+        for path in targets
+        if (root := _root_of(path)) is not None and (init := _layer_init(path, root)) is not None
+    ]
     if not found:
         return
-    file_path, init = found[0]
+    file_path, root, init = found[0]
 
     state = _state_file(payload["session_id"])
 
     if post:
         with state.open("a", encoding="utf-8") as f:
-            f.writelines(f"{init}\n" for path, init in found if path.resolve() == init)
+            f.writelines(f"{init}\n" for path, _, init in found if path.resolve() == init)
         return
 
     already_read = state.is_file() and str(init) in (state.read_text(encoding="utf-8").splitlines())
@@ -69,9 +73,8 @@ def main() -> None:
         return
 
     reason = (
-        f"Перед изменением {file_path.resolve().relative_to(root.resolve())} "
-        f"прочитай конвенции слоя: {init.relative_to(root.resolve())}. "
-        "Затем выбери слой по этим конвенциям и повтори изменение."
+        f"Before changing {file_path.resolve().relative_to(root)}, read the conventions of its layer: "
+        f"{init.relative_to(root)}. Then pick the layer by those conventions and repeat the change."
     )
     json.dump(
         {

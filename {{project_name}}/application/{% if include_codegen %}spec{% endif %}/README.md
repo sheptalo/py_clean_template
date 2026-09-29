@@ -60,6 +60,9 @@ interfaces:                              # ports, the name starts with I
                                          # a dotted implementation names its own module, e.g.
                                          # presentation.fastapi.caller.BearerCaller
     scope: app                           # lifetime of the implementations: request (default) or app
+    settings: SqlSettings                # parameters of the implementation: a BaseSettings class
+                                         # with its own env_prefix, taken in __init__; the fields
+                                         # are written by hand, and every field needs a default
     methods:                             # every method is async and abstract; a method without
       count:                             # arguments omits args:
         returns: int

@@ -19,6 +19,18 @@
           "title": "Implementation",
           "type": "string"
         },
+        "settings": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Settings"
+        },
         "scope": {
           "default": "request",
           "enum": [

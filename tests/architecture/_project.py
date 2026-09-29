@@ -72,9 +72,9 @@ def _lines(path: Path) -> list[str]:
 
 
 def is_ignored(path: Path, line: int, rule: str) -> bool:
-    """Проверяет комментарий `# arc: ignore[rule, ...]` на строке нарушения.
+    """Whether the line of the violation carries an `arc: ignore[rule, ...]` comment.
 
-    Для нарушений уровня файла (например, имя файла) строка — первая.
+    A violation of the whole file (its name, for one) is reported on line 1.
     """
     lines = _lines(path)
     if not 1 <= line <= len(lines):

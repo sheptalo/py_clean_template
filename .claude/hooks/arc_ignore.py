@@ -40,10 +40,10 @@ def main() -> None:
         return
 
     reason = (
-        "Агенту запрещено добавлять, изменять или переносить arc: ignore (см. AGENTS.md), "
-        "даже по просьбе пользователя. Исправь код так, чтобы проверка из tests/architecture/ проходила. "
-        "Если это невозможно — остановись и опиши пользователю нарушение и правило. "
-        "Для поиска существующих комментариев используй Grep вместо Bash."
+        "An agent may never add, change or move arc: ignore (see AGENTS.md), not even when the user "
+        "asks. Fix the code so the check from tests/architecture/ passes. If that is impossible, stop "
+        "and describe the violation and the rule to the user. To look for existing comments use Grep "
+        "instead of Bash."
     )
     json.dump(
         {

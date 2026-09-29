@@ -44,7 +44,8 @@ endpoints:
     summary: Create an item              # OpenAPI summary
     use_case:                            # DTOs relative to <package>.application.dto;
       input: item.CreateItemInput        # the DI key is IUseCase[Input, Output]
-      output: item.ItemOutput
+      output: item.ItemOutput            # none for a use case that returns nothing,
+                                         # together with status: 204
     request:
       body: CreateItemRequest            # a schema of this file
     errors:                              # documented in OpenAPI with the status from errors

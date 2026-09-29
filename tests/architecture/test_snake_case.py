@@ -51,4 +51,4 @@ def test_file_names_are_snake_case() -> None:
 def test_variable_names_are_snake_case() -> None:
     violations = [name for path in iter_all_python_files() for name in _bad_variable_names(path)]
 
-    assert not violations, f"Variable names must be snake_case: {violations}"
+    assert not violations, f"Names must be snake_case or CONSTANT_CASE; a type alias is `type Name = ...`: {violations}"

@@ -7,7 +7,10 @@ use_cases/ — one class per scenario.
 - Subclasses IUseCase[Input, Output] and is decorated with @use_case.
 - Input is a dedicated @dto per use case, never None or a primitive.
   The DI key of a use case is IUseCase[Input, Output], so two use cases
-  must not share the same pair of types.
+  must not share the same pair of types. When auto-wiring is on, every
+  subclass of IUseCase found in this package is registered under that key,
+  and a new use case needs no registration line; a duplicate pair fails at
+  startup with DuplicateUseCaseError.
 - Dependencies are declared as fields typed with ports from interfaces/.
 - Orchestrates only: load data through ports, call domain logic, save
   through ports. Contains no business rules.

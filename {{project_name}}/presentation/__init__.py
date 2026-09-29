@@ -25,10 +25,26 @@ A handwritten FastAPI adapter, when the code generator is not used:
 - A handler takes use_case: FromDishka[IUseCase[Input, Output]], builds the
   Input DTO from its schema, and returns its own response schema.
 - A domain error becomes a status in one table, not in a try/except per
-  handler: pass exception_handlers={ItemNotFoundError: handler} to FastAPI
-  in composition, where a handler answers JSONResponse(status_code=...).
-- composition/api.py includes the routers of this package: that is the only
-  place that knows which of them the entrypoint serves.
+  handler. The table lives in this package, next to the routers, and the
+  entrypoint only hands it to FastAPI. FastAPI types it strictly, so both
+  the table and the handlers are annotated:
+
+      type Handlers = dict[
+          int | type[Exception],
+          Callable[[Request, Any], Coroutine[Any, Any, Response]],
+      ]
+
+      async def _not_found(_request: Request, _error: Exception) -> Response:
+          return JSONResponse(status_code=404, content={"detail": "..."})
+
+      EXCEPTION_HANDLERS: Handlers = {ItemNotFoundError: _not_found}
+
+  A handler returns Response (JSONResponse is one): annotating the return
+  as JSONResponse makes the table incompatible with FastAPI.
+- The entrypoint wires this package in, and is the only place that knows
+  which of it the entrypoint serves: in composition/api.py add
+  app.include_router(...) for every router it serves, and pass
+  exception_handlers=EXCEPTION_HANDLERS to FastAPI.
 
 DI registration: port implementations and their settings (BaseSettings)
 live in the subpackage of their entrypoint (presentation/fastapi,

@@ -53,10 +53,11 @@ the service.
   app_client(override(IUseCase[Input, Output], fake)).
 {% else %}- The adapter is called directly with the use case it needs; the entrypoint
   that resolves it from the container is covered in tests/composition.
-{% endif %}- A fake use case is a plain class with async __call__, not a subclass of
-  IUseCase: auto-wiring registers every subclass and would see two use
-  cases with one key. A fake of a port does subclass its port — auto-wiring
-  takes implementations from the package only, never from tests.
+{% endif %}- A fake use case is a plain class with async __call__ and inherits
+  nothing: IUseCase is a Protocol, so it type-checks anywhere the real use
+  case is expected, and auto-wiring — which registers every subclass —
+  never sees it. A fake of a port does subclass its port: implementations
+  are taken from the package only, never from tests.
 {% if include_codegen %}- A generated router needs no test per endpoint: the specification states
   the mapping and its own check guards it. What is tested here is what the
   specification does not state — a handwritten adapter of this layer, and

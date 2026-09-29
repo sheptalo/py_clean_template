@@ -1,9 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass
-from typing import dataclass_transform
+from typing import Protocol, dataclass_transform
 
 
-class IUseCase[Input, Output](ABC):
+class IUseCase[Input, Output](Protocol):
+    """A scenario. A use case subclasses it, so auto-wiring finds it; a fake only needs the same call."""
+
     @abstractmethod
     async def __call__(self, data: Input) -> Output: ...
 

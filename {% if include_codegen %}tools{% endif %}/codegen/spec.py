@@ -80,6 +80,7 @@ class MethodSpec(Model):
 class InterfaceSpec(Model):
     doc: str | None = None
     implementation: str
+    settings: str | None = None
     scope: Literal["request", "app"] = "request"
     methods: dict[str, MethodSpec] = Field(default_factory=dict)
 

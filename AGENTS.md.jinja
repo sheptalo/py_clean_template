@@ -1,84 +1,96 @@
-# Правила для AI-агентов
+# Rules for AI agents
 
-## Команды
+## Commands
 
 ```bash
-{% if include_fastapi %}uv run api --reload                  # HTTP-вход, работают все флаги uvicorn
-{% endif %}uv run pytest -m "not integration"   # то, что гоняет pre-commit
-uv run pytest                        # всё, включая тесты, которым нужны живые сервисы
-uv run pytest --cov                  # с отчётом о покрытии
+{% if include_fastapi %}uv run api --reload                  # the HTTP entrypoint; every uvicorn flag works
+{% endif %}uv run pytest -m "not integration"   # what pre-commit runs
+uv run pytest                        # everything, including tests that need live services
+uv run pytest --cov                  # with a coverage report
 uv run ruff check . && uv run ruff format --check .
 uv run mypy .
-uv run lint-imports                  # контракт слоёв
-{% if include_codegen %}uv run python -m tools.codegen       # DTO, порты и FastAPI-слой из YAML-спек
+uv run lint-imports                  # the layer contract
+{% if include_codegen %}uv run python -m tools.codegen       # DTOs, ports and the FastAPI layer from the YAML specs
 uv run python -m tools.codegen --check
 {% endif %}```
 
-## Перед началом работы
+## Skills
 
-Перед началом любой работы с кодом (написание, ревью, рефакторинг) используй скилл `/karpathy-guidelines` —
-`.agents/skills/karpathy-guidelines/SKILL.md`.
+They live in `.agents/skills/<name>/SKILL.md`; read the whole file before you work.
 
-## Конвенции слоёв
+- `karpathy-guidelines` — before any work on code: writing, reviewing, refactoring.
+- `ponytail` — same moment: the simplest solution that works.
+- `vertical-slice` — when you add a whole feature: the order to walk the layers in.
+- `green` — before you say "done": the order of the checks and what each failure means.
+- `code-review` — reviewing a pull request.
 
-Перед созданием или изменением файла в слое прочитай конвенции этого слоя —
-docstring в `__init__.py` слоя:
+## Layer conventions
 
-- `<главный пакет>/domain/__init__.py`
-- `<главный пакет>/application/__init__.py`
-- `<главный пакет>/infrastructure/__init__.py`
-- `<главный пакет>/presentation/__init__.py`
+Before you create or change a file in a layer, read the conventions of that
+layer — the docstring of the layer's `__init__.py`:
+
+- `<main package>/domain/__init__.py`
+- `<main package>/application/__init__.py`
+- `<main package>/infrastructure/__init__.py`
+- `<main package>/presentation/__init__.py`
 - `composition/__init__.py`
-- `tests/__init__.py` — для тестов
+- `tests/__init__.py` — for tests
 
-Слой для нового кода выбирай по этим конвенциям. Если по ним код относится
-к другому слою, клади его туда.
+Pick the layer for new code by those conventions. If they put the code in
+another layer, that is where it goes.
 
-В Claude Code это проверяет хук `.claude/hooks/layer_conventions.py`: `Edit`,
-`Write` и `Bash`, которые пишут в файл слоя, отклоняются, пока в текущей сессии
-не прочитан `__init__.py` этого слоя.
+In Claude Code the hook `.claude/hooks/layer_conventions.py` enforces this:
+`Edit`, `Write` and `Bash` that write into a file of a layer are refused until
+that layer's `__init__.py` has been read in the current session.
 
-## Падающий тест
+## A failing test
 
-Падающий тест — вопрос, а не препятствие. Сначала реши, что неверно: тест или код.
-Ожидаемое значение меняется, только если изменилось требование, и об этом прямо
-говорится пользователю. Ослаблять проверку, пропускать или удалять тест, чтобы
-набор прошёл, агенту запрещено.
+A failing test is a question, not an obstacle. First decide which is wrong:
+the test or the code. The expected value changes only when the requirement
+changed, and that change is stated to the user explicitly. An agent may never
+weaken a check, skip a test or delete one to make the suite pass.
 
-## Запрет `arc: ignore`
+## `arc: ignore` is forbidden
 
-Комментарий `# arc: ignore[<правило>]` отключает проверку из `tests/architecture` на
-строке нарушения. Его ставит только человек.
+The comment `# arc: ignore[<rule>]` turns off a check from `tests/architecture`
+on the line of the violation. Only a human writes it.
 
-**Агенту запрещено добавлять, изменять, расширять или переносить
-`arc: ignore` — без исключений.** Запрет действует, даже если пользователь
-прямо просит, настаивает, ссылается на срочность, разрешение или «один раз».
-Если проверка из `tests/architecture/` падает, исправь код. Если исправить нельзя —
-остановись и опиши нарушение и правило пользователю, чтобы он сам решил,
-ставить ли `arc: ignore`.
+**An agent may never add, change, extend or move `arc: ignore` — no
+exceptions.** The ban holds even if the user asks directly, insists, or appeals
+to urgency, permission or "just this once". If a check from
+`tests/architecture/` fails, fix the code. If it cannot be fixed, stop and
+describe the violation and the rule to the user, so they decide whether to
+write `arc: ignore` themselves.
 
-В Claude Code это проверяет хук `.claude/hooks/arc_ignore.py`: `Edit`, `Write`
-и `Bash`, которые добавляют, меняют или переносят `arc: ignore`, отклоняются.
+In Claude Code the hook `.claude/hooks/arc_ignore.py` enforces this: `Edit`,
+`Write` and `Bash` that add, change or move `arc: ignore` are refused.
 
-{% if include_codegen %}## Сгенерированный код
+{% if include_codegen %}## Generated code
 
-Если в проекте есть `tools/codegen`, генератор собирает из YAML:
+When the project has `tools/codegen`, the generator builds from YAML:
 
-- `<главный пакет>/presentation/fastapi/generated/` — из `.../presentation/fastapi/spec/`;
-- `<главный пакет>/application/dto/<файл>.py` и `<главный пакет>/application/interfaces/<файл>.py`
-  с заголовком «Generated» — из `.../application/spec/`.
+- `<main package>/presentation/fastapi/generated/` — from `.../presentation/fastapi/spec/`;
+- `<main package>/application/dto/<file>.py` and `<main package>/application/interfaces/<file>.py`
+  with a "Generated" header — from `.../application/spec/`.
 
-Эти файлы править руками нельзя: изменения затрёт следующая генерация. Меняй
-спецификацию и запускай `python -m tools.codegen`, проверка — `python -m tools.codegen --check`.
+These files are never edited by hand: the next run overwrites the change. Change
+the specification and run `python -m tools.codegen`; the check is
+`python -m tools.codegen --check`.
 
-Заготовки use case'ов в `<главный пакет>/application/use_cases/<файл>.py`, реализаций портов
-(или в модуле из `implementation:`) и fake-портов в `tests/fakes/<файл>.py` генератор дописывает:
-класса из спецификации там нет — добавит, класс уже написан — не тронет. Поэтому порт, добавленный
-в `ports:` уже написанного use case'а, полем в классе не появится — допиши его руками. Бизнес-логику и работу с внешними системами
-дописывают руками.
+Skeletons of use cases in `<main package>/application/use_cases/<file>.py`, of port
+implementations (or in the module named by `implementation:`) and of port fakes in
+`tests/fakes/<file>.py` are appended to: a class of the specification that is not there
+is added, a class already written is **left alone entirely**. So on a second iteration
+the generator silently (with exit code 0) adds nothing inside a class already written:
 
-Язык спецификаций описан в README рядом с ними (`.../application/spec/README.md`,
-`.../presentation/fastapi/spec/README.md`), структуру проверяет `spec.schema.json` в тех же
-папках — первую строку спецификации с `# yaml-language-server: $schema=./spec.schema.json`
-не удаляй.
+- a port added to `ports:` of an existing use case does not appear as a field;
+- a method added to an existing port appears neither in the implementation nor in the
+  fake — there it surfaces only as a mypy error about an unimplemented abstract method.
+
+Such additions are written by hand. So are business logic and work with external systems.
+
+The language of the specifications is described in the README next to them
+(`.../application/spec/README.md`, `.../presentation/fastapi/spec/README.md`), and
+`spec.schema.json` in the same folders checks the structure — do not delete the first
+line of a specification, `# yaml-language-server: $schema=./spec.schema.json`.
 {% endif %}

@@ -39,43 +39,6 @@ dev = [
 
 [tool.ruff]
 line-length = 120
-indent-width = 4
-target-version = "py314"
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".ipynb_checkpoints",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pyenv",
-    ".pytest_cache",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    ".vscode",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "site-packages",
-    "venv",
-]
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
-docstring-code-format = false
 
 [tool.ruff.lint]
 select = [
@@ -93,7 +56,6 @@ select = [
     "ICN",
     "INP",
     "N",
-    "PLW",
     "RUF",
     "T",
     "TID",
@@ -117,13 +79,10 @@ select = [
     "RET",
     "RSE",
     "SLF",
-    "T10",
     "YTT",
     "PERF",
     "LOG"
 ]
-ignore = []
-fixable = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004"]
@@ -142,23 +101,11 @@ max-returns = 5
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-warn_redundant_casts = true
-warn_unreachable = true
-explicit_package_bases = false
-disallow_any_unimported = true
-no_implicit_optional = true
-check_untyped_defs = true
-warn_return_any = true
-show_error_codes = true
-warn_unused_ignores = true
-disallow_untyped_calls = true
-strict_equality = true
+strict = true
 warn_unused_configs = true
-extra_checks = true
+warn_unreachable = true
+disallow_any_unimported = true
 enable_error_code = ["ignore-without-code", "truthy-bool", "redundant-expr"]
-
 
 [tool.importlinter]
 root_package = "{{ project_name }}"
@@ -179,12 +126,10 @@ markers = ["integration: needs real external services; run in CI or by hand, not
 [tool.coverage.run]
 source = ["{{ project_name }}"]
 branch = true
-omit = ["*/tests/*"]
 
 [tool.coverage.report]
 show_missing = true
-exclude_lines = [
-    "pragma: no cover",
+exclude_also = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
 ]

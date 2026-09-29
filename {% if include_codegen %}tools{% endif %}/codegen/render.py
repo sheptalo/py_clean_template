@@ -733,7 +733,7 @@ def skeletons() -> dict[Path, str]:
         ]
         for module, subclasses in renderer.implementation_modules().items():
             target = (REPO_ROOT / package).joinpath(*module.split(".")).with_suffix(".py")
-            targets.append((target, partial(renderer.render_subclasses, subclasses)))
+            targets.append((target, partial(renderer.render_subclasses, subclasses, settings=True)))
         for target, render in targets:
             body = parse_body(target)
             skeleton = render({node.name for node in body if isinstance(node, ast.ClassDef)})
