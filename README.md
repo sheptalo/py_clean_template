@@ -2,6 +2,60 @@
 
 Copier template for a Python project built on Clean Architecture (in DDD terms): `domain/` → `application/` → `infrastructure/`/`presentation/`, with an explicit Composition Root (`composition/`) outside all rings. Optionally adds FastAPI (`include_fastapi`) and dishka (`include_dishka`); with dishka, auto-wiring of use cases (`auto_wire_use_cases`) and of port implementations with their settings (`auto_wire_ports`) is switched on or off separately.
 
+## Creating a project
+
+You need [uv](https://docs.astral.sh/uv/) and git; copier runs through `uvx`, nothing else to install.
+
+```bash
+uvx copier copy --trust https://github.com/sheptalo/py_clean_template my_service
+```
+
+Copier asks the questions below and then runs `uv sync` in the new project — that task is why `--trust` is needed. To answer from the command line instead, pass every question without a default with `--data`:
+
+```bash
+uvx copier copy --trust --defaults \
+    --data project_name=my_service --data include_fastapi=true --data include_dishka=true \
+    https://github.com/sheptalo/py_clean_template my_service
+```
+
+| Question | Default | Asked when | Adds |
+|---|---|---|---|
+| `project_name` | — | always | the name of the main package |
+| `include_fastapi` | — | always | the FastAPI app and the `api` command (with dishka) |
+| `include_dishka` | — | always | the dishka container in `composition/bootstrap/` |
+| `auto_wire_use_cases` | `true` | with dishka | registration of every `IUseCase` subclass by scanning |
+| `auto_wire_ports` | `true` | with dishka | registration of port implementations and their settings by scanning |
+| `include_codegen` | `false` | always | the application layer generated from YAML (`tools/codegen`) |
+| `codegen_fastapi` | `true` | with codegen, FastAPI and dishka | FastAPI routers generated from YAML as well |
+
+Then put the project under git and install the hooks (pre-commit, and pre-push for `uv audit`):
+
+```bash
+cd my_service
+git init && git add -A && git commit -m "Generate from clean_template"
+uv run pre-commit install
+```
+
+Keep `.copier-answers.yml` committed: it records the answers and the template commit, and `copier update` starts from it.
+
+## Updating a project
+
+`copier update` replays the template changes since the recorded commit onto the project. It needs a git repository with a clean working tree — commit or stash first.
+
+```bash
+uvx copier update --trust --defaults
+```
+
+- `--defaults` keeps your previous answers and takes the default for questions the template added since; without it copier asks them.
+
+After an update, rebuild and check everything — an update can tighten rules (an architecture test, an import contract) that the project then has to meet:
+
+```bash
+uv sync
+uv run python -m tools.codegen   # with include_codegen: the generator itself may have changed
+uv run pre-commit run --all-files
+```
+
 ## Architecture principles
 
 | DDD (Evans) | Clean Architecture (Uncle Bob) | Hexagonal (Cockburn) |
