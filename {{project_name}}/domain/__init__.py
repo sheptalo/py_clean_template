@@ -19,10 +19,15 @@ Domain service.
 - A pure function or a stateless class: entities and values in, a result
   out. No I/O and no ports.
 
-Constants and enumerations come from the ubiquitous language.
-
-Errors live in exceptions.py and subclass DomainError, so presentation can
-map them to statuses and a use case can catch a whole family at once.
+Layout, one module per concept inside each package (entities/item.py):
+- entities/ — objects with identity and a life cycle.
+- value_objects/ — values without identity, equal when their fields are
+  equal (Money, Email).
+- constants/ — enumerations and constants of the ubiquitous language.
+  Presentation may import them, when a schema names the same set of values.
+- services/ — domain services, see below.
+- exceptions.py — errors, subclassing DomainError, so presentation can map
+  them to statuses and a use case can catch a whole family at once.
 
 Does not belong here:
 - A port (repository, gateway, clock, timer) → application/interfaces.

@@ -28,6 +28,14 @@ runs the blocking call through asyncio.to_thread.
   nothing about the DI library. An implementation that keeps state in the
   process (an in-memory store, a pool, a client) needs scope = "app": with
   the default it is rebuilt for every call and its data is gone.
+- One implementation per port: with auto-wiring on, a second one fails at
+  startup with DuplicateImplementationError (a class that extends an
+  implementation replaces it instead), and the container refuses an
+  implementation in presentation that silently replaces one from
+  infrastructure. To keep two, pick one with a class attribute of the
+  PortProvider that scans them (InfrastructureProvider for infrastructure/)
+  naming every port the class serves:
+  store = provide(SqlStore, provides=AnyOf[IReader, IWriter], scope=Scope.APP).
 - A port lives here even if a domain service needs it: the domain does
   not import ports.
 - A port that reads the call context (current user, headers, environment)

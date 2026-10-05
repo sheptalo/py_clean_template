@@ -25,8 +25,13 @@ auto_wire_ports:
 include_codegen:
     type: bool
     default: false
-    when: "{{ include_fastapi and include_dishka }}"
-    help: Do you wanna generate the FastAPI presentation layer from a YAML spec?
+    help: Do you wanna generate the application layer (DTOs, ports, skeletons) from a YAML spec?
+
+codegen_fastapi:
+    type: bool
+    default: "{{ include_codegen and include_fastapi and include_dishka }}"
+    when: "{{ include_codegen and include_fastapi and include_dishka }}"
+    help: Generate the FastAPI presentation layer from a YAML spec as well?
 
 _tasks:
   - "uv sync"

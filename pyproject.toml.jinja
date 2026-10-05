@@ -8,10 +8,10 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "pydantic-settings>=2.15.0",
-    {% if include_fastapi %}"fastapi>=0.141.1",{% endif %}
-    {% if include_fastapi %}"uvicorn>=0.52.4",{% endif %}
-    {% if include_dishka %}"dishka>=1.10.1",{% endif %}
-]
+{% if include_fastapi %}    "fastapi>=0.141.1",
+    "uvicorn>=0.52.4",
+{% endif %}{% if include_dishka %}    "dishka>=1.10.1",
+{% endif %}]
 {% if include_fastapi and include_dishka %}
 [project.scripts]
 api = "composition.api:main"
@@ -28,6 +28,7 @@ module-root = ""
 dev = [
     "anyio>=4.15.1",
     "mypy>=2.3.1",
+    "pre-commit>=4.4.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.6",
@@ -114,12 +115,27 @@ root_package = "{{ project_name }}"
 name = "Clean Architecture"
 type = "layers"
 layers = [
-    "{{ project_name }}.presentation",
-    "{{ project_name }}.infrastructure",
+    "{{ project_name }}.presentation | {{ project_name }}.infrastructure",
     "{{ project_name }}.application",
     "{{ project_name }}.domain",
 ]
 
+[[tool.importlinter.contracts]]
+name = "Presentation sees only domain exceptions and constants"
+type = "forbidden"
+source_modules = ["{{ project_name }}.presentation"]
+forbidden_modules = ["{{ project_name }}.domain"]
+ignore_imports = [
+    "{{ project_name }}.presentation.** -> {{ project_name }}.domain.exceptions",
+    "{{ project_name }}.presentation.** -> {{ project_name }}.domain.constants",
+    "{{ project_name }}.presentation.** -> {{ project_name }}.domain.constants.**",
+]
+unmatched_ignore_imports_alerting = "none"
+allow_indirect_imports = true
+{% if include_codegen %}
+[tool.codegen]
+fastapi = {{ 'true' if codegen_fastapi else 'false' }}
+{% endif %}
 [tool.pytest.ini_options]
 markers = ["integration: needs real external services; run in CI or by hand, not by pre-commit"]
 

@@ -7,6 +7,11 @@ Belongs here:
   and main() functions for [project.scripts]. Clients of external systems
   needed by port implementations are not entrypoints: their factories
   live in infrastructure.
+- Middleware of an entrypoint (CORS, compression, ...): added in its
+  factory, next to the routers. Its parameters are fields of that
+  entrypoint's settings, built once in the factory: AppSettings in api.py,
+  when the project has one, where a new setting is a new field and a group
+  of them a nested model (APP_CORS__ORIGINS fills cors.origins).
 - DI providers, registration and the choice of port implementations
   (bootstrap/).
 - The provider graph shared by all entrypoints (bootstrap/container): use

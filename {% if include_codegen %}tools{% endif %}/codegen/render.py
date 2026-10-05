@@ -1,4 +1,4 @@
-"""Render FastAPI routers and exception handlers from the YAML specification."""
+"""Render code from the YAML specifications: the application layer, and FastAPI routers when that codegen is on."""
 
 import ast
 import dataclasses
@@ -60,6 +60,20 @@ def find_package() -> str:
     if not isinstance(package, str):
         raise PackageNotFoundError(REPO_ROOT)
     return package
+
+
+def fastapi_codegen() -> bool:
+    """[tool.codegen] fastapi in pyproject.toml: the template answer, which also decides whether the app serves them."""
+    with (REPO_ROOT / "pyproject.toml").open("rb") as file:
+        return tomllib.load(file).get("tool", {}).get("codegen", {}).get("fastapi") is True
+
+
+def presentation_may_import(package: str, module: str) -> bool:
+    """The import-linter contracts: presentation imports application, domain.exceptions and domain.constants."""
+    if not module.startswith(f"{package}."):
+        return True
+    allowed = (f"{package}.application.", f"{package}.presentation.", f"{package}.domain.constants.")
+    return module.startswith(allowed) or module in {f"{package}.domain.exceptions", f"{package}.domain.constants"}
 
 
 def spec_dir(package: str) -> Path:
@@ -126,6 +140,11 @@ class Renderer:
 
     def reference(self, cls: type) -> str:
         """Import the module of a class and return the name the generated code refers to the class by."""
+        if not presentation_may_import(self.package, cls.__module__):
+            raise self.fail(
+                f"{cls.__module__}.{cls.__name__}: presentation imports only application, domain.exceptions and "
+                "domain.constants; an enum belongs in domain/constants, anything else reaches it through a DTO"
+            )
         parts = cls.__module__.split(".")
         alias = parts[-1]
         if self.modules.setdefault(alias, cls.__module__) != cls.__module__:
@@ -172,7 +191,7 @@ class Renderer:
         return spec_type
 
     def dotted_enum(self, dotted: str, where: str) -> type[Enum]:
-        """An enum named by a dotted path: relative to application.dto, or to the package (domain.item.State)."""
+        """An enum named by a dotted path: relative to application.dto, or to the package (domain.constants.x.State)."""
         for prefix in (f"{self.package}.application.dto.", f"{self.package}."):
             try:
                 value = import_object(self.path, f"{prefix}{dotted}")
@@ -559,6 +578,8 @@ def error_handlers(package: str, specs: dict[Path, RouterSpec]) -> dict[str, int
             error = import_object(path, f"{package}.{dotted}")
             if not (isinstance(error, type) and issubclass(error, Exception)):
                 raise SpecError(path, f"{dotted} is not an exception")
+            if not presentation_may_import(package, error.__module__):
+                raise SpecError(path, f"{dotted}: presentation maps errors of domain.exceptions and application only")
             key = f"{error.__module__}.{error.__name__}"
             if handlers.setdefault(key, status) != status:
                 raise SpecError(path, f"{dotted} is already mapped to status {handlers[key]}")
@@ -688,6 +709,10 @@ def installed(files: dict[Path, str]) -> Iterator[None]:
 def generate() -> dict[Path, str]:
     package = find_package()
     files = application_files(package, application_renderers(package))
+    if not fastapi_codegen():
+        if spec_dir(package).is_dir():
+            raise SpecError(spec_dir(package), "FastAPI codegen is off ([tool.codegen] fastapi in pyproject.toml)")
+        return files | schema_files(package)
     specs = load_specs(spec_dir(package), RouterSpec)
     with installed(files):
         handlers = error_handlers(package, specs)
@@ -744,10 +769,9 @@ def skeletons() -> dict[Path, str]:
 
 def schema_files(package: str) -> dict[Path, str]:
     """JSON Schema of the specifications, so an editor checks the YAML before the generator does."""
-    models: dict[Path, type[Model]] = {
-        application_spec_dir(package) / SCHEMA_FILE: ApplicationSpec,
-        spec_dir(package) / SCHEMA_FILE: RouterSpec,
-    }
+    models: dict[Path, type[Model]] = {application_spec_dir(package) / SCHEMA_FILE: ApplicationSpec}
+    if fastapi_codegen():
+        models[spec_dir(package) / SCHEMA_FILE] = RouterSpec
     return {path: json.dumps(model.model_json_schema(), indent=2) + "\n" for path, model in models.items()}
 
 
@@ -766,11 +790,11 @@ def outdated(files: dict[Path, str]) -> list[Path]:
 
 def write(files: dict[Path, str]) -> list[Path]:
     package = find_package()
-    generated_dir(package).mkdir(parents=True, exist_ok=True)
     changed = outdated(files)
     for path in obsolete(package, files):
         path.unlink()
     for path, text in files.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
     created = []
     for path, text in skeletons().items():

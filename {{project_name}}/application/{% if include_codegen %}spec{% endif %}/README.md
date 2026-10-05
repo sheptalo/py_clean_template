@@ -23,7 +23,7 @@ dtos:                                    # DTOs of this module
   ItemOutput:
     id: uuid                             # str, int, float, bool, uuid, datetime, date, decimal,
     name: str                            # an enum or another DTO of this file, a dotted path to a
-                                         # class of the package (domain.item.ItemState), list[...];
+                                         # class of the package (domain.constants.item.ItemState), list[...];
     quantity: int                        # a trailing ? makes the field optional
     state: ItemState
 
@@ -70,17 +70,17 @@ interfaces:                              # ports, the name starts with I
         doc: The item with this id, or None if there is none.
         args:
           item_id: uuid                  # a scalar, an enum or DTO of this file, or a dotted path
-        returns: domain.item.Item?       # to a class relative to the package
+        returns: domain.entities.item.Item?  # to a class relative to the package
       find:
         doc: |
           Items in creation order.
           state=None returns every item.
         args:
           state: ItemState?
-        returns: list[domain.item.Item]
+        returns: list[domain.entities.item.Item]
       add:
         args:
-          item: domain.item.Item
+          item: domain.entities.item.Item
         returns: none
 ```
 

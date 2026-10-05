@@ -26,7 +26,9 @@ DI registration: implementations, settings and client factories from
 infrastructure go into the container shared by all entrypoints. When
 auto-wiring is on, composition's provider finds them by scanning this
 package — every non-abstract subclass of a port and every BaseSettings
-subclass — and a new class needs no registration line anywhere. With
+subclass — and a new class needs no registration line anywhere. A port
+has one implementation: a second one is a startup error until
+InfrastructureProvider picks one (see application/__init__.py). With
 auto-wiring off, each one is registered by hand in composition.
 
 Does not belong here:

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from composition.api import create_app
@@ -8,3 +9,13 @@ def test_app_starts_and_describes_its_api() -> None:
         response = client.get("/openapi.json")
 
     assert response.status_code == 200
+
+
+def test_app_lets_a_configured_origin_through_cors(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_CORS__ORIGINS", "https://admin.example, https://app.example")
+    preflight = {"Origin": "https://app.example", "Access-Control-Request-Method": "POST"}
+
+    with TestClient(create_app()) as client:
+        response = client.options("/", headers=preflight)
+
+    assert response.headers["access-control-allow-origin"] == "https://app.example"

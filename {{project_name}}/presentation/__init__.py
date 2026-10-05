@@ -1,9 +1,10 @@
 """Presentation layer — driving adapters: HTTP, CLI, consumers.
 
 Imports: application (IUseCase, DTOs, ports) and frameworks. From domain —
-exceptions, to turn them into responses, and enumerations, when a schema
-names the same set of values. Forbidden: domain entities and value objects;
-concrete infrastructure classes — composition injects them.
+domain.exceptions, to turn errors into responses, and domain.constants,
+when a schema names the same set of values. Forbidden: domain.entities,
+domain.value_objects, domain.services, and infrastructure — composition
+injects the implementations. import-linter enforces both bans.
 
 Belongs here:
 - Own request and response schemas. Use case DTOs and entities are never

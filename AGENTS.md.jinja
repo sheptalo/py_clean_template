@@ -10,7 +10,7 @@ uv run pytest --cov                  # with a coverage report
 uv run ruff check . && uv run ruff format --check .
 uv run mypy .
 uv run lint-imports                  # the layer contract
-{% if include_codegen %}uv run python -m tools.codegen       # DTOs, ports and the FastAPI layer from the YAML specs
+{% if include_codegen %}uv run python -m tools.codegen       # DTOs and ports{% if codegen_fastapi %}, and the FastAPI layer,{% endif %} from the YAML specs
 uv run python -m tools.codegen --check
 {% endif %}```
 
@@ -69,9 +69,10 @@ In Claude Code the hook `.claude/hooks/arc_ignore.py` enforces this: `Edit`,
 
 When the project has `tools/codegen`, the generator builds from YAML:
 
-- `<main package>/presentation/fastapi/generated/` — from `.../presentation/fastapi/spec/`;
 - `<main package>/application/dto/<file>.py` and `<main package>/application/interfaces/<file>.py`
   with a "Generated" header — from `.../application/spec/`.
+{% if codegen_fastapi %}- `<main package>/presentation/fastapi/generated/` — from `.../presentation/fastapi/spec/`.
+{% endif %}
 
 These files are never edited by hand: the next run overwrites the change. Change
 the specification and run `python -m tools.codegen`; the check is
@@ -85,12 +86,14 @@ the generator silently (with exit code 0) adds nothing inside a class already wr
 
 - a port added to `ports:` of an existing use case does not appear as a field;
 - a method added to an existing port appears neither in the implementation nor in the
-  fake — there it surfaces only as a mypy error about an unimplemented abstract method.
+  fake — there it surfaces only as a mypy error about an unimplemented abstract method;
+- a changed `implementation:` adds the new class and leaves the old one: delete it, two
+  implementations of one port fail at startup.
 
 Such additions are written by hand. So are business logic and work with external systems.
 
 The language of the specifications is described in the README next to them
-(`.../application/spec/README.md`, `.../presentation/fastapi/spec/README.md`), and
+(`.../application/spec/README.md`{% if codegen_fastapi %}, `.../presentation/fastapi/spec/README.md`{% endif %}), and
 `spec.schema.json` in the same folders checks the structure — do not delete the first
 line of a specification, `# yaml-language-server: $schema=./spec.schema.json`.
 {% endif %}

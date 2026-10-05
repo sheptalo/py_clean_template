@@ -11,10 +11,10 @@ def override(key: object, target: object) -> Provider:
     """Answer `key` with `target`: a ready instance, or a class whose own dependencies DI injects."""
     if isinstance(target, type):
         provider = Provider(scope=Scope.REQUEST)
-        provider.provide(target, provides=key)
+        provider.provide(target, provides=key, override=True)
         return provider
     provider = Provider(scope=Scope.APP)
-    provider.provide(lambda: target, provides=key)
+    provider.provide(lambda: target, provides=key, override=True)
     return provider
 
 

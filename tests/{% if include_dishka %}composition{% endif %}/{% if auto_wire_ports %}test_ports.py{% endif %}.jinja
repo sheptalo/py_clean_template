@@ -1,0 +1,103 @@
+from abc import abstractmethod
+from types import ModuleType
+
+import pytest
+from dishka import make_async_container
+
+from composition.bootstrap.ports import DuplicateImplementationError, PortProvider
+
+from {{ project_name }}.application.interfaces.port import IPort
+
+
+def scanned(name: str, *classes: type) -> ModuleType:
+    """A package for PortProvider to scan, holding classes defined inside a test."""
+    for cls in classes:
+        cls.__module__ = f"{name}.adapters"
+    return ModuleType(name)
+
+
+def test_two_implementations_of_one_port_are_refused() -> None:
+    """Auto-wiring registers what it scans: a second implementation would silently override the first."""
+
+    class IPing(IPort):
+        @abstractmethod
+        async def ping(self) -> None: ...
+
+    class FirstPing(IPing):
+        async def ping(self) -> None: ...
+
+    class SecondPing(IPing):
+        async def ping(self) -> None: ...
+
+    with pytest.raises(DuplicateImplementationError, match=r"\.FirstPing and .*\.SecondPing both implement .*IPing:"):
+        PortProvider(scanned("refused", IPing, FirstPing, SecondPing))
+
+
+@pytest.mark.anyio
+async def test_one_implementation_of_two_ports_is_one_instance() -> None:
+    class IReader(IPort):
+        @abstractmethod
+        async def read(self) -> None: ...
+
+    class IWriter(IPort):
+        @abstractmethod
+        async def write(self) -> None: ...
+
+    class Store(IReader, IWriter):
+        async def read(self) -> None: ...
+
+        async def write(self) -> None: ...
+
+    container = make_async_container(PortProvider(scanned("multi", IReader, IWriter, Store)))
+    async with container() as request:
+        reader = await request.get(IReader)
+        writer = await request.get(IWriter)
+    await container.close()
+
+    assert type(reader) is Store
+    assert writer is reader
+
+
+@pytest.mark.anyio
+async def test_ports_extending_one_base_port_keep_their_own_implementations() -> None:
+    class IRepository(IPort):
+        @abstractmethod
+        async def count(self) -> int: ...
+
+    class IItems(IRepository): ...
+
+    class IOrders(IRepository): ...
+
+    class Items(IItems):
+        async def count(self) -> int:
+            return 1
+
+    class Orders(IOrders):
+        async def count(self) -> int:
+            return 2
+
+    container = make_async_container(PortProvider(scanned("shared", IRepository, IItems, IOrders, Items, Orders)))
+    async with container() as request:
+        served = (type(await request.get(IItems)), type(await request.get(IOrders)))
+    await container.close()
+
+    assert served == (Items, Orders)
+
+
+@pytest.mark.anyio
+async def test_an_implementation_extending_another_replaces_it() -> None:
+    class IPing(IPort):
+        @abstractmethod
+        async def ping(self) -> None: ...
+
+    class MemoryPing(IPing):
+        async def ping(self) -> None: ...
+
+    class JsonPing(MemoryPing): ...
+
+    container = make_async_container(PortProvider(scanned("chain", IPing, MemoryPing, JsonPing)))
+    async with container() as request:
+        served = type(await request.get(IPing))
+    await container.close()
+
+    assert served is JsonPing

@@ -3,7 +3,7 @@ from typing import cast, get_origin
 
 from dishka import Provider, Scope
 
-from composition.bootstrap.utils import get_children, load_packages
+from composition.bootstrap.utils import DuplicateRegistrationError, get_children, load_packages
 
 from {{ project_name }}.application import use_cases
 from {{ project_name }}.application.interfaces.use_case import IUseCase
@@ -16,12 +16,9 @@ class NotAUseCaseError(TypeError):
         super().__init__(f"{cls.__module__}.{cls.__qualname__} must subclass IUseCase[Input, Output]")
 
 
-class DuplicateUseCaseError(TypeError):
+class DuplicateUseCaseError(DuplicateRegistrationError):
     def __init__(self, key: type, first: type, second: type) -> None:
-        super().__init__(
-            f"{first.__module__}.{first.__qualname__} and {second.__module__}.{second.__qualname__} "
-            f"share DI key {key}: give each use case its own Input DTO"
-        )
+        super().__init__(first, second, f"share DI key {key}: give each use case its own Input DTO")
 
 
 def orig_bases(cls: type) -> type[IUseCase[object, object]]:

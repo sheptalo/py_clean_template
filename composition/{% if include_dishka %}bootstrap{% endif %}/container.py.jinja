@@ -1,12 +1,14 @@
-from dishka import AsyncContainer, Provider, make_async_container
+from dishka import AsyncContainer, Provider, ValidationSettings, make_async_container
 
 from composition.bootstrap.ports import InfrastructureProvider
 from composition.bootstrap.use_cases import UseCaseProvider
 
 
 def make_container(*extra: Provider) -> AsyncContainer:
+    """A provider that replaces a registration says so with provide(..., override=True); a silent one is an error."""
     return make_async_container(
         UseCaseProvider(),
         InfrastructureProvider(),
         *extra,
+        validation_settings=ValidationSettings(implicit_override=True),
     )

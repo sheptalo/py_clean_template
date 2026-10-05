@@ -14,7 +14,7 @@ Copier template for a Python project built on Clean Architecture (in DDD terms):
 
 Rules that follow from this and must be respected when adding code:
 
-1. **The domain knows nothing about the outside world.** Entities and domain services in `domain/` are plain Python objects (`dataclass`, not `pydantic`: `pydantic` semantics such as `.model_dump()` are already a dependency on a framework, not on the language). The dependency direction is enforced by the `import-linter` contract in `pyproject.toml.jinja`: `presentation → infrastructure → application → domain`; reverse imports are a linter error.
+1. **The domain knows nothing about the outside world.** Entities and domain services in `domain/` are plain Python objects (`dataclass`, not `pydantic`: `pydantic` semantics such as `.model_dump()` are already a dependency on a framework, not on the language). The dependency direction is enforced by the `import-linter` contract in `pyproject.toml.jinja`: presentation and infrastructure are independent siblings above `application → domain`, and presentation may import only `domain.exceptions` and `domain.constants` from the domain; any other import is a linter error.
 2. **Interfaces (ports) live in `application/interfaces`, not in `domain/`.** Even if a domain service needs a port, an import from `domain/*.py` into `application/interfaces/*` must be an explicit layer violation, not a "neighbouring file" that slips through review.
 3. **A `Service` in application is legitimate only as a process manager that keeps state between calls** (coordinates something over time). If a service actually just translates a format for infrastructure or hides a business rule among side effects, the code is in the wrong layer.
 4. **DTO: one type per boundary with an independent reason to change.** Presentation DTOs and Gateway/Repository DTOs for the same data must not be one type, even if their fields currently match. The exception is a Repository: it may receive the Entity itself, that is its job.
@@ -24,7 +24,7 @@ Rules that follow from this and must be respected when adding code:
 
 ```
 {{project_name}}/
-├── domain/              # entities, value objects, domain services; exceptions.py — domain errors
+├── domain/              # entities/, value_objects/, constants/, services/; exceptions.py — domain errors
 ├── application/
 │   ├── spec/            # YAML specification of use cases, DTOs and ports (with include_codegen)
 │   ├── use_cases/       # Use Cases — one class per scenario
@@ -34,7 +34,7 @@ Rules that follow from this and must be respected when adding code:
 ├── infrastructure/      # port implementations: databases, external APIs, brokers
 └── presentation/
     └── fastapi/          # HTTP adapter (with include_fastapi)
-        ├── spec/         # YAML specification of the API (with include_codegen)
+        ├── spec/         # YAML specification of the API (with codegen_fastapi)
         └── generated/    # code produced by tools.codegen, never edited by hand
 
 composition/                                  # Composition Root — outside {{project_name}}/
@@ -51,14 +51,14 @@ composition/                                  # Composition Root — outside {{p
     │                                            # without auto_wire_ports InfrastructureProvider is empty for provide()
     └── utils.py                                 # package traversal / subclass lookup for auto-wiring
 
-tools/codegen/       # generator of the presentation layer (with include_codegen)
+tools/codegen/       # generator of the application layer, and of the FastAPI layer (with include_codegen)
 tests/               # tests; __init__.py — how they are written; the layout mirrors the package
 ├── fakes/           # in-memory fakes of ports for application tests
 ├── composition/     # the container builds and the app starts (with include_dishka)
 ├── presentation/    # client.py: app_client() and override() for HTTP tests (with include_fastapi + include_dishka)
 └── architecture/    # architecture checks (naming, base classes, @dto, snake_case, tests, generated code)
 copier.yaml          # template variables: project_name, include_fastapi, include_dishka,
-                     # auto_wire_use_cases, auto_wire_ports, include_codegen
+                     # auto_wire_use_cases, auto_wire_ports, include_codegen, codegen_fastapi
 pyproject.toml.jinja  # dependencies + import-linter layer contract
 ```
 
@@ -74,7 +74,7 @@ uv run api --reload
 uv run api --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-A new entrypoint (worker, CLI) is a module in `composition/` with its own `main()` function plus a line in `[project.scripts]`. With `auto_wire_ports` it builds the container as `make_container(<framework integration>, PortProvider(<its presentation subpackage>))`: port implementations from `infrastructure` are shared, while those from the `presentation` subpackage (for example, an implementation that needs `Request`) go only into this entrypoint's container. A choice of implementation or scope for a single entrypoint is a `provide()` in a `PortProvider` subclass in its module. Without `auto_wire_ports` the entrypoint passes its own provider with explicit `provide()` calls instead of `PortProvider`.
+A new entrypoint (worker, CLI) is a module in `composition/` with its own `main()` function plus a line in `[project.scripts]`. With `auto_wire_ports` it builds the container as `make_container(<framework integration>, PortProvider(<its presentation subpackage>))`: port implementations from `infrastructure` are shared, while those from the `presentation` subpackage (for example, an implementation that needs `Request`) go only into this entrypoint's container. A choice of implementation or scope for a single entrypoint is a class attribute `provide(..., override=True)` in a `PortProvider` subclass in its module: the container refuses a registration that replaces another without saying so. Two implementations of one port inside `infrastructure` are a startup error until `InfrastructureProvider` picks one with a class attribute `provide(<class>, provides=AnyOf[<every port it serves>], scope=...)`. Without `auto_wire_ports` the entrypoint passes its own provider with explicit `provide()` calls instead of `PortProvider`.
 
 Adapter parameters (paths, URLs, timeouts, keys) are described by a `BaseSettings` subclass from `pydantic-settings` next to the implementation, with its own `env_prefix`. The implementation receives it in `__init__`. With `auto_wire_ports`, `PortProvider` registers the settings class from the same package automatically, scope APP; without it the settings class is registered with `provide()` like any other dependency:
 
@@ -140,10 +140,10 @@ interfaces:
       get:
         args:
           item_id: uuid
-        returns: domain.item.Item?
+        returns: domain.entities.item.Item?
       add:
         args:
-          item: domain.item.Item
+          item: domain.entities.item.Item
         returns: none
 ```
 
@@ -152,12 +152,12 @@ interfaces:
 - **`application/interfaces/<file>.py`** is generated too: one `IPort` subclass per entry of `interfaces`, every method `async` and `@abstractmethod`. `scope` (`request` by default) is written into the port, so the lifetime of its implementations is declared next to the port itself. `doc` of a port and of a method becomes its docstring: the contract every implementation keeps ("in creation order", "None if there is none").
 - **`application/use_cases/<file>.py`**, **`infrastructure/<file>.py`** and **`tests/fakes/<file>.py`** are skeletons: a class the specification declares is added when the file has no class with that name, and a class that is already there is never touched again, so a use case or a port added to an existing specification gets its skeleton too. The classes, the `@use_case` decorator, the port fields listed in `ports` and the signatures come from the specification; the business logic and the implementation are written by hand. `implementation` is the name of the class in infrastructure, so it reflects the technology as the layer conventions require.
 - **Field types** are the same as in the presentation specification: `str`, `int`, `float`, `bool`, `uuid`, `datetime`, `date`, `decimal`, an enum or another DTO from the same file, `list[...]`, and a trailing `?` for optional. The output of a use case is a DTO of the same file, a list of one, or `none` — a primitive there is rejected, as the `dto-decorator` check requires.
-- **In `interfaces` and `ports`** a type may also be a dotted path to a class relative to the package (`domain.item.Item`, `application.interfaces.clock.IClock`), which is how a port takes and returns entities and a use case uses a port of another file.
+- **In `interfaces` and `ports`** a type may also be a dotted path to a class relative to the package (`domain.entities.item.Item`, `application.interfaces.clock.IClock`), which is how a port takes and returns entities and a use case uses a port of another file.
 - The presentation specification refers to these DTOs as usual: `input: item.CreateItemInput`.
 
-## Generated presentation layer (`include_codegen`)
+## Generated presentation layer (`codegen_fastapi`)
 
-With `include_codegen` the FastAPI presentation layer is generated from YAML. The specification in `<package>/presentation/fastapi/spec/*.yaml` is the source of truth; the code in `<package>/presentation/fastapi/generated/` is written by the generator and must not be edited by hand. That directory also holds a copyable example with comments and `spec.schema.json`; start every specification with the line that points to it, and the editor reports an unknown or missing key without running the generator:
+With `codegen_fastapi` the FastAPI presentation layer is generated from YAML as well; without it the application layer is still generated and the routers are written by hand. The specification in `<package>/presentation/fastapi/spec/*.yaml` is the source of truth; the code in `<package>/presentation/fastapi/generated/` is written by the generator and must not be edited by hand. That directory also holds a copyable example with comments and `spec.schema.json`; start every specification with the line that points to it, and the editor reports an unknown or missing key without running the generator:
 
 ```yaml
 # yaml-language-server: $schema=./spec.schema.json
@@ -217,7 +217,7 @@ endpoints:
 - **`input`** maps a field of the Input DTO to a source: `body.name`, `path.item_id`, `query.limit`. A body field that is a schema, or a list of one, fills an Input field of the same shape: the handler builds that DTO from it, and the DTO must hold scalars and enums only — a deeper tree is refused with a message naming the field. A field whose name matches exactly one source is mapped without `input`; write it there to rename a source or to choose between several of them.
 - **`response`** is optional: without it the schema is built from the Output DTO and named after it, nested DTOs included. To send a different shape, declare a schema in `schemas` and name it in `response` — the generator checks that the Output DTO can fill it. A list output produces a list response.
 - **`schemas`** are the wire types of this router: the request body always, a response that has to differ from the Output DTO.
-- **Field types:** `str`, `int`, `float`, `bool`, `uuid`, `datetime`, `date`, `decimal`, another schema, an enum of a DTO module or of the domain (`item.ItemState`, `domain.item.ItemState`), `list[...]`. A `decimal` travels as a JSON string (`"22.88"`), never as a float; how many digits it keeps is a rule of the domain, the specification has no vocabulary for it. A trailing `?` makes a field of a schema or a parameter optional with `None` as the default; `= <value>` gives another default (`limit: int = 20`, `state: item.ItemState = "open"`), and `limit: = 20` keeps the type of the Input field. A default is a literal or `true`, `false`, `null`; an enum default must be one of its values.
+- **Field types:** `str`, `int`, `float`, `bool`, `uuid`, `datetime`, `date`, `decimal`, another schema, an enum of a DTO module or of the domain (`item.ItemState`, `domain.constants.item.ItemState`), `list[...]`. A `decimal` travels as a JSON string (`"22.88"`), never as a float; how many digits it keeps is a rule of the domain, the specification has no vocabulary for it. A trailing `?` makes a field of a schema or a parameter optional with `None` as the default; `= <value>` gives another default (`limit: int = 20`, `state: item.ItemState = "open"`), and `limit: = 20` keeps the type of the Input field. A default is a literal or `true`, `false`, `null`; an enum default must be one of its values.
 - **`errors`** is a section of its own: exception class relative to the package → status code. Handlers are collected from all files into `generated/__init__.py` and passed to `FastAPI(exception_handlers=...)`. The `errors` list of an endpoint names the errors it answers with, and OpenAPI shows them as responses with that status and the `ErrorResponse` body from `generated/errors.py`.
 - **`auth`** is `none`, `optional` or `required`. It only requires credentials: `required` answers 401 without an `Authorization: Bearer` header and adds the lock in OpenAPI. Permissions stay in the use case, as the layer conventions require.
 

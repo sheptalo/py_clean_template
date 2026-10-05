@@ -1,4 +1,4 @@
-"""Generate the FastAPI presentation layer from the YAML specification.
+"""Generate code from the YAML specifications: DTOs and ports, and the FastAPI layer when that codegen is on.
 
 python -m tools.codegen            # write generated code
 python -m tools.codegen --check    # fail if generated code is out of date

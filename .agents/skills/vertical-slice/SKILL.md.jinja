@@ -7,21 +7,23 @@ description: >
 ---
 
 # A vertical slice
-
+{% set step = namespace(n=0) %}
 The order is strict: every step builds on the result of the one before.{% if include_codegen %}
 While rendering, the generator **imports** the classes a specification refers to, so whatever is
 referred to has to exist first.{% endif %}
 
 Before a file of any layer, read that layer's `__init__.py` docstring — what may go there is
 their decision.
+{% set step.n = step.n + 1 %}
+## {{ step.n }}. Domain
 
-{% if include_codegen %}## 1. Domain
-
-Entities, value objects and rules. A specification refers to them by a dotted path
-(`domain.item.Item`), and that path is imported while the code is generated: entities are
-written first.
-
-## 2. The application specification
+Entities in `domain/entities/`, values in `domain/value_objects/`, enumerations and constants in
+`domain/constants/`, rules over several entities in `domain/services/`, errors in
+`domain/exceptions.py`.{% if include_codegen %} A specification refers to them by a dotted path
+(`domain.entities.item.Item`), and that path is imported while the code is generated: they are
+written first.{% endif %}
+{% if include_codegen %}{% set step.n = step.n + 1 %}
+## {{ step.n }}. The application specification
 
 `{{ project_name }}/application/spec/<file>.yaml`. Its language is in the README next to it.
 One file is one resource: its enums, DTOs, use cases and ports.
@@ -30,8 +32,8 @@ One file is one resource: its enums, DTOs, use cases and ports.
 - a port that needs state inside the process (an in-memory store, a pool, a client) declares
   `scope: app` — with the default `request` it is rebuilt on every call and loses its data;
 - parameters of an implementation (paths, addresses, timeouts, keys) are `settings: <Name>Settings`.
-
-## 3. The first run of the generator
+{% set step.n = step.n + 1 %}
+## {{ step.n }}. Run the generator
 
 ```bash
 uv run python -m tools.codegen
@@ -44,20 +46,33 @@ A skeleton is written **once per class**: on a second iteration the generator ex
 and adds nothing inside a class already written. A port added to `ports:` of an existing use case,
 and a method added to an existing port, are written by hand — in the use case, in the
 implementation and in the fake.
-
-## 4. The bodies
+{% set step.n = step.n + 1 %}
+## {{ step.n }}. The bodies
 
 Business logic goes into the domain entity; a use case only orchestrates: load through a port,
 call the domain, save through a port. The entity → Output DTO mapping is written by hand.
 Port implementations go to `infrastructure/` (or to the module from `implementation:`), fakes to
 `tests/fakes/`.
+{% else %}{% set step.n = step.n + 1 %}
+## {{ step.n }}. Application
 
-## 5. The router specification
+Input and output DTOs (`dto/`), ports (`interfaces/`), the use case (`use_cases/`).
 
-`{{ project_name }}/presentation/fastapi/spec/<file>.yaml`. It refers to the DTOs from step 3 —
-which is why it comes now and not earlier.
+- the input is a dedicated `@dto` per use case, never a primitive and never None;
+- a port that needs state inside the process declares `scope = "app"`;
+- business logic goes into the domain; a use case only orchestrates.
+{% set step.n = step.n + 1 %}
+## {{ step.n }}. Infrastructure
 
-## 6. The second run of the generator
+Port implementations. Their parameters are a `BaseSettings` of their own with its own
+`env_prefix`, arriving in `__init__`.
+{% endif %}{% if codegen_fastapi %}{% set step.n = step.n + 1 %}
+## {{ step.n }}. The router specification
+
+`{{ project_name }}/presentation/fastapi/spec/<file>.yaml`. It refers to the DTOs the generator has
+just written — which is why it comes now and not earlier.
+{% set step.n = step.n + 1 %}
+## {{ step.n }}. Run the generator again
 
 ```bash
 uv run python -m tools.codegen
@@ -65,44 +80,21 @@ uv run python -m tools.codegen
 
 Two runs are not belt and braces: on the first one the DTOs the router specification imports do
 not exist yet.
-
-## 7. Tests
-{% else %}## 1. Domain
-
-Entities, value objects and rules.
-
-## 2. Application
-
-Input and output DTOs (`dto/`), ports (`interfaces/`), the use case (`use_cases/`).
-
-- the input is a dedicated `@dto` per use case, never a primitive and never None;
-- a port that needs state inside the process declares `scope = "app"`;
-- business logic goes into the domain; a use case only orchestrates.
-
-## 3. Infrastructure
-
-Port implementations. Their parameters are a `BaseSettings` of their own with its own
-`env_prefix`, arriving in `__init__`.
-
-{% if include_fastapi %}## 4. Presentation
+{% elif include_fastapi %}{% set step.n = step.n + 1 %}
+## {{ step.n }}. Presentation
 
 Request and response schemas, the router and the `exception_handlers` table — the recipe, with
 every type spelled out, is in the `presentation/__init__.py` docstring.
+{% endif %}{% set step.n = step.n + 1 %}
+## {{ step.n }}. Composition
 
-## 5. Composition
+{% if include_dishka and auto_wire_ports %}Port implementations and their settings need no registration: the provider finds them by scanning the package. A port has one implementation — a second one is a startup error until `InfrastructureProvider` picks one (the `application/__init__.py` docstring says how).
+{% else %}Register the port implementations and their settings.
+{% endif %}{% if codegen_fastapi %}Generated routers and error handlers are already wired into `composition/api.py`.
+{% elif include_fastapi %}The entrypoint is wired by hand: `app.include_router(...)` and `exception_handlers=...` in `composition/api.py`.
+{% endif %}{% set step.n = step.n + 1 %}
+## {{ step.n }}. Tests
 
-{% if include_dishka and auto_wire_ports %}Port implementations and their settings need no registration: the provider finds them by scanning the package.
-{% else %}Registration of the port implementations and their settings.
-{% endif %}The entrypoint is wired by hand: `app.include_router(...)` and `exception_handlers=...` in `composition/api.py`.
-
-## 6. Tests
-{% else %}## 4. Composition
-
-{% if include_dishka and auto_wire_ports %}Port implementations and their settings need no registration: the provider finds them by scanning the package.
-{% else %}Registration of the port implementations and their settings.
-{% endif %}
-## 5. Tests
-{% endif %}{% endif %}
 Which test goes where is in the `tests/__init__.py` docstring. A new test must fail without the
 change it covers.
 

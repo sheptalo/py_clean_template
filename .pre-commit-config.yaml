@@ -1,3 +1,5 @@
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
 default_language_version:
   python: python3.14
 
@@ -23,7 +25,7 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.6
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
       - id: ruff-format
   - repo: local
@@ -34,6 +36,7 @@ repos:
         language: system
         require_serial: true
         pass_filenames: false
+        files: \.pyi?$|^pyproject\.toml$|^uv\.lock$
 
       - id: import-linter
         name: import-linter
@@ -54,3 +57,12 @@ repos:
         entry: uv audit --preview-features audit-command
         language: system
         pass_filenames: false
+        files: ^uv\.lock$
+
+      - id: uv-audit-on-push
+        name: uv-audit (advisories published since the last lock change)
+        entry: uv audit --preview-features audit-command
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

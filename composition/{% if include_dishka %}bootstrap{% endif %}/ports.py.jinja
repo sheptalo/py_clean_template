@@ -6,7 +6,7 @@ from types import ModuleType
 from dishka import AnyOf, Provider, Scope
 from pydantic_settings import BaseSettings
 
-from composition.bootstrap.utils import get_children, load_packages
+from composition.bootstrap.utils import DuplicateRegistrationError, get_children, load_packages
 
 from {{ project_name }} import infrastructure
 from {{ project_name }}.application.interfaces.port import IPort
@@ -15,7 +15,50 @@ SCOPES = {"request": Scope.REQUEST, "app": Scope.APP}
 
 
 def ports_of(cls: type) -> list[type]:
-    return [base for base in cls.__mro__[1:] if issubclass(base, IPort) and inspect.isabstract(base)]
+    """The ports a class serves: its most derived abstract IPort bases, not the ports those extend."""
+    ports = [base for base in cls.__mro__[1:] if issubclass(base, IPort) and inspect.isabstract(base)]
+    return [port for port in ports if not any(other is not port and issubclass(other, port) for other in ports)]
+
+
+PICK = (
+    "pick one with a class attribute of the PortProvider that scans them (InfrastructureProvider for "
+    "infrastructure/) naming every port it serves: provide(<class>, provides=AnyOf[...], scope=...)"
+)
+
+
+class DuplicateImplementationError(DuplicateRegistrationError):
+    def __init__(self, port: type, first: type, second: type) -> None:
+        super().__init__(first, second, f"both implement {port.__qualname__}: delete one, or {PICK}")
+
+
+class PartialPickError(TypeError):
+    def __init__(self, cls: type, ports: list[type]) -> None:
+        names = ", ".join(port.__qualname__ for port in ports)
+        super().__init__(
+            f"{cls.__module__}.{cls.__qualname__} is picked with provide() but not for {names}: {PICK}, "
+            "so one instance serves them all"
+        )
+
+
+def implementations(
+    classes: list[type[IPort]], declared: set[object], picked: set[object]
+) -> dict[type[IPort], list[type]]:
+    """Each implementation with the ports it serves: one per port, and a subclass replaces the class it extends."""
+    chosen: dict[type, type[IPort]] = {}
+    for cls in classes:
+        ports = [port for port in ports_of(cls) if port not in declared]
+        if cls in picked and ports:
+            raise PartialPickError(cls, ports)
+        for port in ports:
+            first = chosen.setdefault(port, cls)
+            if issubclass(cls, first):
+                chosen[port] = cls
+            elif not issubclass(first, cls):
+                raise DuplicateImplementationError(port, first, cls)
+    served: dict[type[IPort], list[type]] = {}
+    for port, cls in chosen.items():
+        served.setdefault(cls, []).append(port)
+    return served
 
 
 def settings_factory[T: BaseSettings](cls: type[T]) -> Callable[[], T]:
@@ -32,10 +75,13 @@ class PortProvider(Provider):
             load_packages(package)
         prefixes = tuple(f"{package.__name__}." for package in packages)
         declared = {factory.provides.type_hint for factory in self.factories}
-        for cls in get_children(IPort):
-            ports = [port for port in ports_of(cls) if port not in declared]
-            if cls.__module__.startswith(prefixes) and ports and not inspect.isabstract(cls):
-                self.provide(cls, scope=SCOPES[cls.scope], provides=AnyOf[*ports])
+        declared |= {alias.provides.type_hint for alias in self.aliases}
+        picked = {factory.source for factory in self.factories}
+        scanned = [
+            cls for cls in get_children(IPort) if cls.__module__.startswith(prefixes) and not inspect.isabstract(cls)
+        ]
+        for cls, ports in implementations(scanned, declared, picked).items():
+            self.provide(cls, scope=SCOPES[cls.scope], provides=AnyOf[*ports])
         for settings in get_children(BaseSettings):
             if settings.__module__.startswith(prefixes) and settings not in declared:
                 self.provide(settings_factory(settings), scope=Scope.APP, provides=settings)

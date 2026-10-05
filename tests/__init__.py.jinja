@@ -58,7 +58,7 @@ the service.
   case is expected, and auto-wiring — which registers every subclass —
   never sees it. A fake of a port does subclass its port: implementations
   are taken from the package only, never from tests.
-{% if include_codegen %}- A generated router needs no test per endpoint: the specification states
+{% if codegen_fastapi %}- A generated router needs no test per endpoint: the specification states
   the mapping and its own check guards it. What is tested here is what the
   specification does not state — a handwritten adapter of this layer, and
   behaviour that only appears over HTTP, such as an error of a use case
