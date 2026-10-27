@@ -110,6 +110,7 @@ enable_error_code = ["ignore-without-code", "truthy-bool", "redundant-expr"]
 
 [tool.importlinter]
 root_package = "{{ project_name }}"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Clean Architecture"
@@ -118,6 +119,22 @@ layers = [
     "{{ project_name }}.presentation | {{ project_name }}.infrastructure",
     "{{ project_name }}.application",
     "{{ project_name }}.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Application and domain are free of frameworks"
+type = "forbidden"
+source_modules = [
+    "{{ project_name }}.application",
+    "{{ project_name }}.domain",
+]
+forbidden_modules = [
+    "dishka",
+    "fastapi",
+    "jwt",
+    "pydantic_settings",
+    "socketio",
+    "starlette",
 ]
 
 [[tool.importlinter.contracts]]

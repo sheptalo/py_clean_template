@@ -7,9 +7,11 @@ python -m tools.codegen --check    # fail if generated code is out of date
 import sys
 from argparse import ArgumentParser
 
-from tools.codegen.render import REPO_ROOT, generate, outdated, write
+from tools.codegen.output import REPO_ROOT
+from tools.codegen.render import generate
 from tools.codegen.spec import SpecError
 from tools.codegen.types import SpecTypeError
+from tools.codegen.write import outdated, write
 
 
 def main() -> int:

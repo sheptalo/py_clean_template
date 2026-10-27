@@ -62,8 +62,7 @@ to urgency, permission or "just this once". If a check from
 describe the violation and the rule to the user, so they decide whether to
 write `arc: ignore` themselves.
 
-In Claude Code the hook `.claude/hooks/arc_ignore.py` enforces this: `Edit`,
-`Write` and `Bash` that add, change or move `arc: ignore` are refused.
+In Claude Code the hook `.claude/hooks/arc_ignore.py` blocks the obvious ways to add `arc: ignore`: `Edit`, `Write` and `Bash` calls that contain the comment text. It is a guardrail, not the check: a reviewer must still look for new `arc: ignore` comments.
 
 {% if include_codegen %}## Generated code
 

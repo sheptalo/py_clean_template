@@ -25,5 +25,4 @@ def load_packages(package: ModuleType) -> None:
     if not hasattr(package, "__path__"):
         return
     for _, module_name, _ in pkgutil.walk_packages(package.__path__, prefix=package.__name__ + "."):
-        module = importlib.import_module(module_name)
-        load_packages(module)
+        importlib.import_module(module_name)

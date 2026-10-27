@@ -111,10 +111,14 @@ class ApplicationRenderer:
     def enum_code(self, name: str, values: list[str]) -> str:
         self.add_import("enum", "StrEnum")
         lines = [f"class {name}(StrEnum):"]
+        members: set[str] = set()
         for value in values:
             member = value.upper()
             if not _MEMBER.match(member):
                 raise self.fail(f"{name}: {value!r} cannot be an enum member name")
+            if member in members:
+                raise self.fail(f"{name}: {value!r} is the same member as an earlier value, rename one of them")
+            members.add(member)
             lines.append(f"    {member} = {value!r}")
         if not values:
             raise self.fail(f"{name}: an enum needs at least one value")
@@ -209,7 +213,9 @@ class ApplicationRenderer:
         """The settings class of an implementation: its own env_prefix, fields are the human's to add."""
         if not settings.endswith(SETTINGS) or settings == SETTINGS:
             raise self.fail(f"{name}: settings must be a class name ending with {SETTINGS}, got {settings!r}")
-        prefix = re.sub(r"(?<!^)(?=[A-Z])", "_", settings.removesuffix(SETTINGS)).upper()
+        prefix = re.sub(
+            r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_", settings.removesuffix(SETTINGS)
+        ).upper()
         self.add_import("pydantic_settings", "BaseSettings")
         self.add_import("pydantic_settings", "SettingsConfigDict")
         return "\n".join(
