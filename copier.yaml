@@ -41,6 +41,7 @@ _exclude:
   - ".git"
   - "copier.yaml"
   - "copier.yml"
+  - "checks"
   - "~*"
   - "*.py[co]"
   - "__pycache__"

@@ -3,6 +3,8 @@ from types import ModuleType
 
 import pytest
 from dishka import make_async_container
+from pydantic import ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from composition.bootstrap.ports import DuplicateImplementationError, PortProvider
 
@@ -101,3 +103,31 @@ async def test_an_implementation_extending_another_replaces_it() -> None:
     await container.close()
 
     assert served is JsonPing
+
+
+def test_settings_are_read_when_the_container_is_built() -> None:
+    class ExportSettings(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix="SETTINGS_CHECK_")
+
+        required_dir: str
+
+    with pytest.raises(ValidationError):
+        PortProvider(scanned("settings_check", ExportSettings))
+
+
+@pytest.mark.anyio
+async def test_a_base_settings_class_is_not_read_at_startup() -> None:
+    class BaseCheckSettings(BaseSettings):
+        model_config = SettingsConfigDict(env_prefix="BASE_CHECK_")
+
+        required_dir: str
+
+    class LeafCheckSettings(BaseCheckSettings):
+        required_dir: str = "default"
+
+    container = make_async_container(PortProvider(scanned("base_check", BaseCheckSettings, LeafCheckSettings)))
+    async with container() as request:
+        settings = await request.get(LeafCheckSettings)
+    await container.close()
+
+    assert settings.required_dir == "default"

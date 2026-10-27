@@ -1,4 +1,5 @@
-from tools.codegen.render import generate, outdated
+from tools.codegen.render import generate
+from tools.codegen.write import outdated
 
 
 def test_generated_code_matches_spec() -> None:

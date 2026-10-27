@@ -4,8 +4,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+from _deny import deny
+
 LAYERS = ("domain", "application", "infrastructure", "presentation")
-WRITES = (">", "tee ", "sed -i", "cp ", "mv ", "touch ", "write_text", "dd ")
+WRITES = ("tee ", "sed -i", "cp ", "mv ", "touch ", "write_text", "dd ")
+_HARMLESS = re.compile(r"\d?>&\d|\d?>\s*/dev/null|&>\s*/dev/null")
+_REDIRECT = re.compile(r"(?<![-=<>])>>?(?![=&>])")
 _PYTHON_FILE = re.compile(r"[\w./{}%-]+\.py")
 
 
@@ -14,7 +18,8 @@ def _targets(tool_input: dict[str, str], cwd: str, *, writes_only: bool) -> list
     if "file_path" in tool_input:
         return [Path(cwd, tool_input["file_path"])]
     command = tool_input.get("command", "")
-    if writes_only and not any(marker in command for marker in WRITES):
+    writes = _HARMLESS.sub("", command)
+    if writes_only and not (_REDIRECT.search(writes) or any(marker in writes for marker in WRITES)):
         return []
     return [Path(cwd, name) for name in _PYTHON_FILE.findall(command)]
 
@@ -59,8 +64,6 @@ def main() -> None:
     ]
     if not found:
         return
-    file_path, root, init = found[0]
-
     state = _state_file(payload["session_id"])
 
     if post:
@@ -68,25 +71,15 @@ def main() -> None:
             f.writelines(f"{init}\n" for path, _, init in found if path.resolve() == init)
         return
 
-    already_read = state.is_file() and str(init) in (state.read_text(encoding="utf-8").splitlines())
-    if already_read:
+    read = set(state.read_text(encoding="utf-8").splitlines()) if state.is_file() else set()
+    for file_path, root, init in found:
+        if str(init) in read:
+            continue
+        deny(
+            f"Before changing {file_path.resolve().relative_to(root)}, read the conventions of its layer: "
+            f"{init.relative_to(root)}. Then pick the layer by those conventions and repeat the change."
+        )
         return
-
-    reason = (
-        f"Before changing {file_path.resolve().relative_to(root)}, read the conventions of its layer: "
-        f"{init.relative_to(root)}. Then pick the layer by those conventions and repeat the change."
-    )
-    json.dump(
-        {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": reason,
-            }
-        },
-        sys.stdout,
-        ensure_ascii=False,
-    )
 
 
 if __name__ == "__main__":

@@ -82,9 +82,17 @@ class PortProvider(Provider):
         ]
         for cls, ports in implementations(scanned, declared, picked).items():
             self.provide(cls, scope=SCOPES[cls.scope], provides=AnyOf[*ports])
-        for settings in get_children(BaseSettings):
-            if settings.__module__.startswith(prefixes) and settings not in declared:
-                self.provide(settings_factory(settings), scope=Scope.APP, provides=settings)
+        scanned_settings = [
+            settings
+            for settings in get_children(BaseSettings)
+            if settings.__module__.startswith(prefixes) and settings not in declared
+        ]
+        for settings in scanned_settings:
+            self.provide(settings_factory(settings), scope=Scope.APP, provides=settings)
+            # Read now, not on first use: a missing environment variable stops the start, not a request.
+            # A base class that another settings class extends is not read: nothing is built from it alone.
+            if not any(other is not settings and issubclass(other, settings) for other in scanned_settings):
+                settings()
 
 
 class InfrastructureProvider(PortProvider):

@@ -17,6 +17,9 @@ use_cases/ — one class per scenario.
 - Checks whether the current user may run the scenario. A check in
   presentation is bypassed by any other entrypoint. The use case gets the
   data for the decision through ports; the domain makes the decision.
+  Who the caller is — the token, its expiry, its revocation — is settled
+  before the use case, by presentation: the use case receives the verified
+  identity through a port such as ICurrentUser and never reads a credential.
 
 interfaces/ — ports: subclass IPort, the name starts with I (for example,
 IItemRepository(IPort)), methods are marked @abstractmethod and are async,

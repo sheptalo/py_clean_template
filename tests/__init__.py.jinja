@@ -3,7 +3,8 @@
 The layout mirrors the package: tests/domain, tests/application,
 tests/infrastructure, tests/presentation, tests/composition.
 tests/architecture checks the structure of the code, tests/fakes holds
-fakes of ports.
+fakes of ports, tests/hooks checks the Claude Code hooks, and test_codegen.py
+(with the code generator) checks its guards.
 
 A test states behaviour.
 - The name is a claim about it: test_create_item_rejects_negative_quantity,
@@ -41,10 +42,10 @@ written is read back, a missing record gives the answer the port promises.
 - The implementation is built with its settings directly
   (JsonStore(JsonSettings(path=tmp_path / "store.json"))): the container is
   not involved and no environment variable is set.
-- conftest.py marks everything in tests/infrastructure as integration, an
-  in-memory adapter included. Pre-commit runs pytest -m "not integration",
-  so these tests run in CI or by hand (pytest, or pytest -m integration),
-  with the services up. Every other test runs without external services.
+- A test that needs live services is marked pytestmark = pytest.mark.integration.
+  Pre-commit runs pytest -m "not integration", so those run in CI or by hand,
+  with the services up. A test that needs no services is not marked: an
+  in-memory adapter runs in pre-commit like any other test.
 
 presentation — the mapping: status codes, the shape of the response,
 authentication, an error turned into a status, no extra fields leaving
