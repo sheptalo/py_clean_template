@@ -1,0 +1,79 @@
+---
+name: authentication
+description: Use when adding, changing, or reviewing authentication, authorization, or protected operations in a project generated from this template.
+---
+
+# Authentication and authorization
+
+Read the layer docstrings before changing those layers. They define the responsibilities; this skill gives the implementation order and tests to cover.
+
+## Implementation order
+
+1. List public and protected operations. Missing, malformed, expired, or revoked credentials produce no verified identity; a protected operation stops before its business use case when identity is absent.
+2. Define the verified identity DTO and credential-verification port. Pass `VerifiedIdentity | None` explicitly into the application authentication workflow.
+3. Implement the verification port in infrastructure. Keep provider-specific parsing and cryptographic checks behind it; return `None` when validation fails.
+4. Implement the presentation adapter that extracts credentials and calls the port.
+5. Implement the application authentication workflow that resolves the current principal and session state through ports. Pass its safe principal context to protected business use cases.
+6. Add permission checks to the protected business use cases, then wire the context and implementations in composition. Follow the layer docstrings for each step's responsibility and error mapping.
+
+{% if include_fastapi and include_dishka %}
+## FastAPI and Dishka
+
+The composition root must register a request-scoped provider that runs the application authentication workflow and provides the safe `Principal` DTO. In `composition/api.py`, add that provider where `create_app()` builds the container. The provider returns a principal only after authentication succeeds and rejects an absent identity. The dependency below only asks Dishka for the resolved principal; it does not parse credentials or access storage.
+
+```python
+from typing import Annotated
+
+from dishka.integrations.fastapi import DishkaRoute, FromDishka, inject
+from fastapi import APIRouter, Depends
+
+
+@inject
+async def require_principal(principal: FromDishka[Principal]) -> Principal:
+    return principal
+
+
+protected_router = APIRouter(
+    route_class=DishkaRoute,
+    dependencies=[Depends(require_principal)],
+)
+```
+
+The router-level dependency checks every operation on `protected_router`. Keep public operations on another router.
+
+To protect one operation only, attach the same dependency to its route:
+
+```python
+router = APIRouter(route_class=DishkaRoute)
+
+
+@router.post("/records", dependencies=[Depends(require_principal)])
+async def create_record() -> None:
+    ...
+```
+
+If the handler needs principal fields, declare it as a parameter instead:
+
+```python
+@router.get("/profile")
+async def read_profile(
+    principal: Annotated[Principal, Depends(require_principal)],
+) -> Principal:
+    return principal
+```
+
+`Principal` stands for the project's safe application DTO; import its actual type in the router module.
+{% endif %}
+
+{% if include_fastapi and not include_dishka %}
+When FastAPI is enabled without Dishka, use the framework's normal dependency wiring with the same router-level or route-level placement.
+{% endif %}
+
+## Tests
+
+- Application: pass an identity or explicit `None`; cover account/session lookup, missing identity, and allowed and denied permission outcomes.
+- Infrastructure: cover valid credentials, malformed or expired credentials, revocation, and the verifier's port contract.
+- Presentation: cover credential extraction, rejecting protected operations without identity, and the transport's authentication/authorization error mapping.
+- Composition: cover provider wiring and request scope.
+
+Do not test framework parsing. Test the application's behavior through ports and the chosen transport mapping at the presentation boundary.

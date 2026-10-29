@@ -9,3 +9,4 @@ Files ending in `.jinja` are copier templates: in a generated project they becom
 - [`skills/karpathy-guidelines/`](skills/karpathy-guidelines/) — behavioral guidelines (think before coding, simplicity first, surgical changes, goal-driven execution).
 - [`skills/ponytail/`](skills/ponytail/) — the laziest working solution: YAGNI, stdlib first, no unrequested abstractions.
 - [`skills/code-review/`](skills/code-review/) — multi-agent PR review skill (Claude Code + `gh` specific; see its README for caveats).
+- [`skills/authentication/`](skills/authentication/) — authentication and authorization boundaries across the application layers.
