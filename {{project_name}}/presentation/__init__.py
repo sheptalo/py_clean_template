@@ -12,11 +12,14 @@ Belongs here:
 - Mapping: request schema → use case DTO, DTO → response schema.
 - Calling a use case obtained from DI as IUseCase[In, Out].
 - Transport details: status codes, headers, format validation.
-- Authentication: who the caller is. Each request, and each connection, is
-  authenticated once, before any use case runs: signature, expiry and
-  revocation are checked here, through a port the infrastructure implements,
-  and the verified identity is handed to the use case. A use case never
-  reads a token or a cookie, and never checks a revocation list.
+- Authentication: who the caller is. Before a protected use case runs, this
+  layer extracts credentials and validates them through an authentication
+  port implemented by infrastructure. It enforces whether an
+  operation requires an identity and passes a verified identity, or explicit
+  absence, into the application authentication workflow. That workflow may
+  resolve current account or session state through ports and provides a safe
+  principal context. Business permission checks stay in application use
+  cases; credentials and request context never enter business use cases.
 - Port implementations that need the incoming request or the entrypoint
   context. They extract data from the request and return primitives or
   DTOs: they do not access storage, do not create entities and do not
