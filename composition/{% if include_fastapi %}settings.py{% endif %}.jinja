@@ -1,0 +1,16 @@
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class CorsSettings(BaseModel):
+    """Origins a browser may call the API from, comma-separated: APP_CORS__ORIGINS=https://a.example,https://b.example"""
+
+    origins: str = ""
+
+
+class AppSettings(BaseSettings):
+    """Settings of this entrypoint: APP_<FIELD>, a group as APP_<GROUP>__<FIELD>. A new setting is a new field here."""
+
+    model_config = SettingsConfigDict(env_prefix="APP_", env_nested_delimiter="__")
+
+    cors: CorsSettings = Field(default_factory=CorsSettings)

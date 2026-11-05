@@ -27,7 +27,8 @@ Layout, one module per concept inside each package (entities/item.py):
   Presentation may import them, when a schema names the same set of values.
 - services/ — domain services, see below.
 - exceptions.py — errors, subclassing DomainError, so presentation can map
-  them to statuses and a use case can catch a whole family at once.
+  them to statuses and a use case can catch a whole family at once. Names
+  describe business failures and never mention implementation technologies.
 
 Does not belong here:
 - A port (repository, gateway, clock, timer) → application/interfaces.

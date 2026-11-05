@@ -1,7 +1,7 @@
 # API specification
 
 `python -m tools.codegen` turns every `*.yaml` in this directory into one router in
-`../generated/`, and collects the error handlers of all files into `../generated/__init__.py`.
+`../generated/`, with request and response schemas in `../generated/schemas/<file>.py`, and collects the error handlers of all files into `../generated/__init__.py`.
 The specification is the source of truth: the generated code is never edited by hand.
 
 Keep the first line of the example: `spec.schema.json` lies next to the specification, so the
