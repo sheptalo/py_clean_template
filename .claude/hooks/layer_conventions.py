@@ -10,7 +10,7 @@ LAYERS = ("domain", "application", "infrastructure", "presentation")
 WRITES = ("tee ", "sed -i", "cp ", "mv ", "touch ", "write_text", "dd ")
 _HARMLESS = re.compile(r"\d?>&\d|\d?>\s*/dev/null|&>\s*/dev/null")
 _REDIRECT = re.compile(r"(?<![-=<>])>>?(?![=&>])")
-_PYTHON_FILE = re.compile(r"[\w./{}%-]+\.py")
+_SOURCE_FILE = re.compile(r"[\w./{}%-]+\.(?:py|md)(?:\.jinja)?")
 
 
 def _targets(tool_input: dict[str, str], cwd: str, *, writes_only: bool) -> list[Path]:
@@ -21,7 +21,7 @@ def _targets(tool_input: dict[str, str], cwd: str, *, writes_only: bool) -> list
     writes = _HARMLESS.sub("", command)
     if writes_only and not (_REDIRECT.search(writes) or any(marker in writes for marker in WRITES)):
         return []
-    return [Path(cwd, name) for name in _PYTHON_FILE.findall(command)]
+    return [Path(cwd, name) for name in _SOURCE_FILE.findall(command)]
 
 
 def _root_of(file_path: Path) -> Path | None:
@@ -29,22 +29,24 @@ def _root_of(file_path: Path) -> Path | None:
     return next((parent for parent in file_path.resolve().parents if (parent / "pyproject.toml").is_file()), None)
 
 
-def _layer_init(file_path: Path, root: Path) -> Path | None:
+def _layer_rule(file_path: Path, root: Path) -> Path | None:
     parts = file_path.resolve().relative_to(root).parts
 
     match parts:
+        case (".agents", "rules", name) if name in {f"{layer}.md" for layer in (*LAYERS, "composition", "tests")}:
+            rule = file_path
         case ("composition", _, *_):
-            init = root / "composition" / "__init__.py"
+            rule = root / ".agents" / "rules" / "composition.md"
         case ("tests", _, *_):
-            init = root / "tests" / "__init__.py"
+            rule = root / ".agents" / "rules" / "tests.md"
         case (package, layer, _, *_) if layer in LAYERS:
             if not all((root / package / name).is_dir() for name in LAYERS):
                 return None
-            init = root / package / layer / "__init__.py"
+            rule = root / ".agents" / "rules" / f"{layer}.md"
         case _:
             return None
 
-    return init.resolve() if init.is_file() else None
+    return rule.resolve() if rule.is_file() else None
 
 
 def _state_file(session_id: str) -> Path:
@@ -58,9 +60,9 @@ def main() -> None:
     post = payload["hook_event_name"] == "PostToolUse"
     targets = _targets(payload["tool_input"], payload["cwd"], writes_only=not post)
     found = [
-        (path, root, init)
+        (path, root, rule)
         for path in targets
-        if (root := _root_of(path)) is not None and (init := _layer_init(path, root)) is not None
+        if (root := _root_of(path)) is not None and (rule := _layer_rule(path, root)) is not None
     ]
     if not found:
         return
@@ -68,16 +70,16 @@ def main() -> None:
 
     if post:
         with state.open("a", encoding="utf-8") as f:
-            f.writelines(f"{init}\n" for path, _, init in found if path.resolve() == init)
+            f.writelines(f"{rule}\n" for path, _, rule in found if path.resolve() == rule)
         return
 
     read = set(state.read_text(encoding="utf-8").splitlines()) if state.is_file() else set()
-    for file_path, root, init in found:
-        if str(init) in read:
+    for file_path, root, rule in found:
+        if str(rule) in read:
             continue
         deny(
             f"Before changing {file_path.resolve().relative_to(root)}, read the conventions of its layer: "
-            f"{init.relative_to(root)}. Then pick the layer by those conventions and repeat the change."
+            f"{rule.relative_to(root)}. Then pick the layer by those conventions and repeat the change."
         )
         return
 

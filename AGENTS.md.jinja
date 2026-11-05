@@ -26,22 +26,24 @@ They live in `.agents/skills/<name>/SKILL.md`; read the whole file before you wo
 
 ## Layer conventions
 
-Before you create or change a file in a layer, read the conventions of that
-layer — the docstring of the layer's `__init__.py`:
+Before you create or change a file in a layer, read its rules:
 
-- `<main package>/domain/__init__.py`
-- `<main package>/application/__init__.py`
-- `<main package>/infrastructure/__init__.py`
-- `<main package>/presentation/__init__.py`
-- `composition/__init__.py`
-- `tests/__init__.py` — for tests
+| Layer | Rules |
+|---|---|
+| `<main package>/domain/` | `.agents/rules/domain.md` |
+| `<main package>/application/` | `.agents/rules/application.md` |
+| `<main package>/infrastructure/` | `.agents/rules/infrastructure.md` |
+| `<main package>/presentation/` | `.agents/rules/presentation.md` |
+| `composition/` | `.agents/rules/composition.md` |
+| `tests/` | `.agents/rules/tests.md` |
 
 Pick the layer for new code by those conventions. If they put the code in
 another layer, that is where it goes.
 
-In Claude Code the hook `.claude/hooks/layer_conventions.py` enforces this:
+The shared `.claude/hooks/layer_conventions.py` hook enforces this when
+configured in Claude Code or Codex:
 `Edit`, `Write` and `Bash` that write into a file of a layer are refused until
-that layer's `__init__.py` has been read in the current session.
+the matching `.agents/rules/<layer>.md` has been read in the current session.
 
 ## A failing test
 

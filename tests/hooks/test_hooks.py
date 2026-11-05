@@ -5,6 +5,8 @@ import uuid
 from collections.abc import Mapping
 from pathlib import Path
 
+import pytest
+
 from tests.architecture._project import REPO_ROOT, find_package_dir
 
 HOOKS = REPO_ROOT / ".claude" / "hooks"
@@ -38,13 +40,13 @@ def layer_decision(event: str, tool: str, tool_input: Mapping[str, str], session
     return decision("layer_conventions.py", payload)
 
 
-def read_layer_init(session: str, layer: str) -> None:
-    layer_decision("PostToolUse", "Read", {"file_path": str(PACKAGE / layer / "__init__.py")}, session)
+def read_layer_rules(session: str, layer: str) -> None:
+    layer_decision("PostToolUse", "Read", {"file_path": str(REPO_ROOT / ".agents" / "rules" / f"{layer}.md")}, session)
 
 
 def test_layer_hook_refuses_a_command_writing_into_an_unread_layer() -> None:
     session = str(uuid.uuid4())
-    read_layer_init(session, "application")
+    read_layer_rules(session, "application")
     command = f"cp {PACKAGE.name}/application/a.py {PACKAGE.name}/infrastructure/b.py"
 
     assert layer_decision("PreToolUse", "Bash", {"command": command}, session) == "deny"
@@ -52,7 +54,7 @@ def test_layer_hook_refuses_a_command_writing_into_an_unread_layer() -> None:
 
 def test_layer_hook_allows_an_edit_in_a_layer_already_read() -> None:
     session = str(uuid.uuid4())
-    read_layer_init(session, "application")
+    read_layer_rules(session, "application")
     edit = {"file_path": str(PACKAGE / "application" / "a.py"), "old_string": "a", "new_string": "b"}
 
     assert layer_decision("PreToolUse", "Edit", edit, session) == "allow"
@@ -68,6 +70,33 @@ def test_layer_hook_allows_a_read_only_search_for_an_arrow() -> None:
     command = f'grep -n "->" {PACKAGE.name}/domain/x.py'
 
     assert layer_decision("PreToolUse", "Bash", {"command": command}, str(uuid.uuid4())) == "allow"
+
+
+@pytest.mark.parametrize("layer", ["domain", "application", "infrastructure", "presentation", "composition", "tests"])
+def test_layer_hook_requires_the_matching_markdown_rule(layer: str) -> None:
+    session = str(uuid.uuid4())
+    directory = REPO_ROOT / layer if layer in {"composition", "tests"} else PACKAGE / layer
+    edit = {"file_path": str(directory / "example.py"), "old_string": "a", "new_string": "b"}
+
+    assert layer_decision("PreToolUse", "Edit", edit, session) == "deny"
+    read_layer_rules(session, layer)
+    assert layer_decision("PreToolUse", "Edit", edit, session) == "allow"
+
+
+def test_reading_the_empty_init_does_not_unlock_the_layer() -> None:
+    session = str(uuid.uuid4())
+    layer_decision("PostToolUse", "Read", {"file_path": str(PACKAGE / "domain" / "__init__.py")}, session)
+    edit = {"file_path": str(PACKAGE / "domain" / "example.py"), "old_string": "a", "new_string": "b"}
+
+    assert layer_decision("PreToolUse", "Edit", edit, session) == "deny"
+
+
+def test_layer_hook_recognizes_reading_rules_through_bash() -> None:
+    session = str(uuid.uuid4())
+    layer_decision("PostToolUse", "Bash", {"command": "cat .agents/rules/application.md"}, session)
+    edit = {"file_path": str(PACKAGE / "application" / "example.py"), "old_string": "a", "new_string": "b"}
+
+    assert layer_decision("PreToolUse", "Edit", edit, session) == "allow"
 
 
 def arc_decision(tool: str, tool_input: Mapping[str, object], cwd: Path) -> str:
