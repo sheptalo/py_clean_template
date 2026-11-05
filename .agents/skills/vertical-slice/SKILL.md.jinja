@@ -12,7 +12,7 @@ The order is strict: every step builds on the result of the one before.{% if inc
 While rendering, the generator **imports** the classes a specification refers to, so whatever is
 referred to has to exist first.{% endif %}
 
-Before a file of any layer, read that layer's `__init__.py` docstring — what may go there is
+Before a file of any layer, read its rules in `.agents/rules/<layer>.md` — what may go there is
 their decision.
 {% set step.n = step.n + 1 %}
 ## {{ step.n }}. Domain
@@ -85,21 +85,21 @@ not exist yet.
 
 Separate request/response schemas (`schemas/<resource>.py`) and routers
 (`routers/<resource>.py`), and the `exception_handlers` table — the recipe, with
-every type spelled out, is in the `presentation/__init__.py` docstring.
+every type spelled out, is in the `.agents/rules/presentation.md`.
 {% endif %}{% set step.n = step.n + 1 %}
 ## {{ step.n }}. Composition
 
 Entrypoint settings live in `composition/settings.py`; custom DI providers live in
 `composition/bootstrap/` beside the existing providers. Adapter settings stay with their implementation.
 
-{% if include_dishka and auto_wire_ports %}Port implementations and their settings need no registration: the provider finds them by scanning the package. A port has one implementation — a second one is a startup error until `InfrastructureProvider` picks one (the `application/__init__.py` docstring says how).
+{% if include_dishka and auto_wire_ports %}Port implementations and their settings need no registration: the provider finds them by scanning the package. A port has one implementation — a second one is a startup error until `InfrastructureProvider` picks one (the `.agents/rules/application.md` says how).
 {% else %}Register the port implementations and their settings.
 {% endif %}{% if codegen_fastapi %}Generated routers and error handlers are already wired into `composition/api.py`.
 {% elif include_fastapi %}The entrypoint is wired by hand: `app.include_router(...)` and `exception_handlers=...` in `composition/api.py`.
 {% endif %}{% set step.n = step.n + 1 %}
 ## {{ step.n }}. Tests
 
-Which test goes where is in the `tests/__init__.py` docstring. A new test must fail without the
+Which test goes where is in the `.agents/rules/tests.md`. A new test must fail without the
 change it covers.
 
 ## The check
