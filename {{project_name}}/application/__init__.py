@@ -19,12 +19,20 @@ use_cases/ — one class per scenario.
   data for the decision through ports; the domain makes the decision.
   Who the caller is — the token, its expiry, its revocation — is settled
   before the use case, by presentation: the use case receives the verified
-  identity through a port such as ICurrentUser and never reads a credential.
+  identity through ICaller and never reads a credential.
+- ICaller identifies the authenticated initiator of a user operation.
+  The target user is a user_id in the Input DTO; an operation on another
+  user needs both the caller for permissions and the target id. Never trust
+  a caller id supplied by the client. A system-only scenario (for example,
+  cron) has no ICaller dependency. Missing caller data never grants system
+  privileges; system scenarios must be explicitly separate.
 
 interfaces/ — ports: subclass IPort, the name starts with I (for example,
 IItemRepository(IPort)), methods are marked @abstractmethod and are async,
 like the use cases that call them. An implementation whose driver blocks
 runs the blocking call through asyncio.to_thread.
+- Port names describe capabilities, not technologies: IFileStorage, not
+  IS3Storage. Implementations may name their technology (S3FileStorage).
 - An implementation subclasses the port.
 - A port declares the lifetime of its implementations: scope = "request"
   (default) or "app". An implementation may override it; the choice says
@@ -62,8 +70,11 @@ A service in application is allowed only as a process manager that keeps
 state between calls (coordinates events over time).
 
 exceptions.py — errors of the scenario itself, subclassing ApplicationError:
-the call carries no credentials, a port is unavailable. A broken business
-rule is not one of them: that is a domain error.
+the call carries no credentials, a port is unavailable. Error names describe
+the application failure, not the implementation: IdentityProviderUnavailableError,
+not KeycloakUnavailableError. Infrastructure translates SDK errors into these
+application errors; presentation imports them from application, never
+infrastructure. A broken business rule is a domain error.
 
 An entity the scenario needs and does not find is a domain error: the port
 answers None, and the use case raises it, because "this must exist" is a

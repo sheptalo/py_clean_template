@@ -83,10 +83,14 @@ not exist yet.
 {% elif include_fastapi %}{% set step.n = step.n + 1 %}
 ## {{ step.n }}. Presentation
 
-Request and response schemas, the router and the `exception_handlers` table — the recipe, with
+Separate request/response schemas (`schemas/<resource>.py`) and routers
+(`routers/<resource>.py`), and the `exception_handlers` table — the recipe, with
 every type spelled out, is in the `presentation/__init__.py` docstring.
 {% endif %}{% set step.n = step.n + 1 %}
 ## {{ step.n }}. Composition
+
+Entrypoint settings live in `composition/settings.py`; custom DI providers live in
+`composition/bootstrap/` beside the existing providers. Adapter settings stay with their implementation.
 
 {% if include_dishka and auto_wire_ports %}Port implementations and their settings need no registration: the provider finds them by scanning the package. A port has one implementation — a second one is a startup error until `InfrastructureProvider` picks one (the `application/__init__.py` docstring says how).
 {% else %}Register the port implementations and their settings.

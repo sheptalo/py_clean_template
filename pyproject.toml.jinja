@@ -10,6 +10,7 @@ dependencies = [
     "pydantic-settings>=2.15.0",
 {% if include_fastapi %}    "fastapi>=0.141.1",
     "uvicorn>=0.52.4",
+    "uvloop>=0.22.1; sys_platform != 'win32' and platform_python_implementation == 'CPython'",
 {% endif %}{% if include_dishka %}    "dishka>=1.10.1",
 {% endif %}]
 {% if include_fastapi and include_dishka %}

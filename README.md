@@ -56,6 +56,10 @@ uv run python -m tools.codegen   # with include_codegen: the generator itself ma
 uv run pre-commit run --all-files
 ```
 
+With FastAPI, uvloop is installed on CPython outside Windows; Uvicorn selects it automatically
+with its default `--loop auto`. Entrypoint settings live in `composition/settings.py`,
+and custom DI providers live in `composition/bootstrap/`.
+
 ## Architecture principles
 
 | DDD (Evans) | Clean Architecture (Uncle Bob) | Hexagonal (Cockburn) |
@@ -270,7 +274,7 @@ endpoints:
 - **`request`** declares `body` (a schema) and `query` and `header` parameters; path parameters are taken from the URL. A parameter written without a type (`limit:`) takes it from the Input field it feeds.
 - **`input`** maps a field of the Input DTO to a source: `body.name`, `path.item_id`, `query.limit`. A body field that is a schema, or a list of one, fills an Input field of the same shape: the handler builds that DTO from it, and the DTO must hold scalars and enums only — a deeper tree is refused with a message naming the field. A field whose name matches exactly one source is mapped without `input`; write it there to rename a source or to choose between several of them.
 - **`response`** is optional: without it the schema is built from the Output DTO and named after it, nested DTOs included. To send a different shape, declare a schema in `schemas` and name it in `response` — the generator checks that the Output DTO can fill it. A list output produces a list response.
-- **`schemas`** are the wire types of this router: the request body always, a response that has to differ from the Output DTO.
+- **`schemas`** are the wire types of this router: the request body always, a response that has to differ from the Output DTO. The generator writes them to `generated/schemas/<file>.py`; handlers stay in `generated/<file>.py` and import those schemas.
 - **Field types:** `str`, `int`, `float`, `bool`, `uuid`, `datetime`, `date`, `decimal`, another schema, an enum of a DTO module or of the domain (`item.ItemState`, `domain.constants.item.ItemState`), `list[...]`. A `decimal` travels as a JSON string (`"22.88"`), never as a float; how many digits it keeps is a rule of the domain, the specification has no vocabulary for it. A trailing `?` makes a field of a schema or a parameter optional with `None` as the default; `= <value>` gives another default (`limit: int = 20`, `state: item.ItemState = "open"`), and `limit: = 20` keeps the type of the Input field. A default is a literal or `true`, `false`, `null`; an enum default must be one of its values.
 - **`errors`** is a section of its own: exception class relative to the package → status code. Handlers are collected from all files into `generated/__init__.py` and passed to `FastAPI(exception_handlers=...)`. The `errors` list of an endpoint names the errors it answers with, and OpenAPI shows them as responses with that status and the `ErrorResponse` body from `generated/errors.py`.
 - **`auth`** is `none`, `optional` or `required`. It only requires credentials: `required` answers 401 without an `Authorization: Bearer` header and adds the lock in OpenAPI. Permissions stay in the use case, as the layer conventions require.

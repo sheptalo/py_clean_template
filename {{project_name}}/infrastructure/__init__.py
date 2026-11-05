@@ -7,7 +7,10 @@ Belongs here:
 - Implementations of ports from application/interfaces.
 - Translation between an external format and entities or DTOs.
 - An implementation name reflects the technology and the port:
-  InMemoryItemRepository, SqlItemRepository.
+  InMemoryItemRepository, SqlItemRepository, S3FileStorage.
+- Translate SDK and driver errors into technology-neutral errors declared
+  in application (IdentityProviderUnavailableError, not KeycloakUnavailableError).
+  Presentation maps these application errors without importing infrastructure.
 - Implementation parameters (paths, addresses, timeouts, keys) are a
   BaseSettings subclass from pydantic-settings in the implementation
   module, each class with its own env_prefix. The implementation receives

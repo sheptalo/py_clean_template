@@ -547,16 +547,35 @@ class Renderer:
             ]
         )
 
-    def render(self) -> str:
+    def render(self) -> dict[Path, str]:
         schemas = [self.schema_code(name, fields) for name, fields in self.spec.schemas.items()]
         endpoints = [self.endpoint_code(name, endpoint) for name, endpoint in self.spec.endpoints.items()]
+        header = HEADER.format(source=self.path.relative_to(REPO_ROOT))
+        schema_imports = imports_block(self.imports)
+        names = set(self.spec.schemas) | set(self.derived)
+        if names:
+            self.add_import(
+                f"{self.package}.presentation.fastapi.generated.schemas.{self.path.stem}",
+                ", ".join(sorted(names)),
+            )
         self.add_import("fastapi", "APIRouter")
         tags = f", tags={self.spec.tags}" if self.spec.tags else ""
-        header = HEADER.format(source=self.path.relative_to(REPO_ROOT))
         prologue = "\n".join(
-            [header, "", imports_block(self.imports), "", f'router = APIRouter(prefix="{self.spec.prefix}"{tags})']
+            [
+                header,
+                "",
+                imports_block(self.imports),
+                "",
+                f'router = APIRouter(prefix="{self.spec.prefix}"{tags})',
+            ]
         )
-        return "\n\n".join([prologue, *schemas, *self.derived.values(), *endpoints]) + "\n"
+        directory = generated_dir(self.package)
+        files = {directory / f"{self.path.stem}.py": "\n\n".join([prologue, *endpoints]) + "\n"}
+        if names:
+            files[directory / "schemas" / f"{self.path.stem}.py"] = (
+                "\n\n".join([header, schema_imports, *schemas, *self.derived.values()]) + "\n"
+            )
+        return files
 
 
 def error_handlers(package: str, specs: dict[Path, RouterSpec]) -> dict[str, int]:
@@ -662,10 +681,12 @@ def generate() -> dict[Path, str]:
     specs = load_specs(spec_dir(package), RouterSpec)
     with installed(files):
         handlers = error_handlers(package, specs)
-        routers = {
-            generated_dir(package) / f"{path.stem}.py": Renderer(package, path, spec, handlers).render()
-            for path, spec in specs.items()
-        }
+        routers: dict[Path, str] = {}
+        for path, spec in specs.items():
+            routers.update(Renderer(package, path, spec, handlers).render())
+        routers[generated_dir(package) / "schemas" / "__init__.py"] = (
+            HEADER.format(source=spec_dir(package).relative_to(REPO_ROOT)) + "\n"
+        )
         routers[generated_dir(package) / "__init__.py"] = package_module(package, specs, handlers)
         routers[generated_dir(package) / "errors.py"] = errors_module(package)
     return files | format_codes(routers) | schema_files(package)

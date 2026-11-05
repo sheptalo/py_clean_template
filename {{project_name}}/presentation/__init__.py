@@ -25,9 +25,11 @@ Belongs here:
   entrypoint registers is what makes the request resolvable.
 
 A handwritten FastAPI adapter, when the code generator is not used:
-- One module per resource in presentation/fastapi (items.py), holding its
-  schemas and its router: APIRouter(route_class=DishkaRoute) from
-  dishka.integrations.fastapi, so a handler can declare a dependency.
+- Separate modules per resource: presentation/fastapi/routers/items.py
+  holds handlers and presentation/fastapi/schemas/items.py holds request
+  and response schemas. Routers import schemas; schemas never import routers.
+  Use APIRouter(route_class=DishkaRoute) from dishka.integrations.fastapi.
+  Custom DI providers belong in composition/bootstrap/.
 - A handler takes use_case: FromDishka[IUseCase[Input, Output]], builds the
   Input DTO from its schema, and returns its own response schema.
 - A domain error becomes a status in one table, not in a try/except per

@@ -61,7 +61,7 @@ def skeletons() -> dict[Path, str]:
 
 
 def obsolete(package: str, files: dict[Path, str]) -> set[Path]:
-    unknown = {path for path in generated_dir(package).glob("*.py") if path not in files and is_generated(path)}
+    unknown = {path for path in generated_dir(package).rglob("*.py") if path not in files and is_generated(path)}
     for directory in (dto_dir(package), interface_dir(package)):
         unknown |= {path for path in directory.glob("*.py") if path not in files and is_generated(path)}
     return unknown
